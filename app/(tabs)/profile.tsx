@@ -1,79 +1,292 @@
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Link, router } from 'expo-router';
+import React, { useState } from 'react';
+import { Image, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+interface UserProfile {
+  nombres: string;
+  apellidos: string;
+  alias: string;
+  email: string;
+  edad: string;
+  genero: string;
+  consentimiento: boolean;
+  terapeutaNombre: string;
+  terapeutaTelefono: string;
+  emergenciaPrincipalNombre: string;
+  emergenciaPrincipalTelefono: string;
+  emergenciaSecundariaNombre: string;
+  emergenciaSecundariaTelefono: string;
+}
 
 export default function ProfileScreen() {
+  const [profile, setProfile] = useState<UserProfile>({
+    nombres: 'María José',
+    apellidos: 'González López',
+    alias: 'Majo',
+    email: 'mariagonzalez@gmail.com',
+    edad: '22',
+    genero: 'Femenino',
+    consentimiento: true,
+    terapeutaNombre: 'Dr. Carlos Mendoza',
+    terapeutaTelefono: '+1 234 567 8901',
+    emergenciaPrincipalNombre: 'Ana González (Madre)',
+    emergenciaPrincipalTelefono: '+1 234 567 8902',
+    emergenciaSecundariaNombre: 'Luis González (Hermano)',
+    emergenciaSecundariaTelefono: '+1 234 567 8903'
+  });
+
+  const getAvatarInitial = () => {
+    if (profile.alias && profile.alias.trim()) {
+      return profile.alias.charAt(0).toUpperCase();
+    }
+    return profile.nombres.charAt(0).toUpperCase();
+  };
+
+  const getDisplayName = () => {
+    if (profile.alias && profile.alias.trim()) {
+      return profile.alias;
+    }
+    return profile.nombres.split(' ')[0];
+  };
+
+  const updateProfile = (field: keyof UserProfile, value: string | boolean) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
   return (
-    <View className="flex-1 bg-gray-50">
+    <ImageBackground
+      source={require('../../assets/images/background/bg2.png')}
+      resizeMode="cover"
+      className="flex-1"
+    >
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="bg-white px-6 pt-16 pb-8 shadow-sm">
+        {/* Header over pastel background */}
+        <View className="px-6 pt-16 pb-8">
           <View className="items-center">
-            <View className="w-20 h-20 bg-blue-600 rounded-full items-center justify-center mb-4">
-              <Text className="text-white text-2xl font-bold">U</Text>
+            <View className="w-20 h-20 rounded-full bg-white items-center justify-center mb-4 shadow-sm">
+              <Image
+                source={require('../../assets/images/perfil.png')}
+                resizeMode="contain"
+                className="w-16 h-16"
+              />
             </View>
-            <Text className="text-2xl font-bold text-gray-800 mb-1">
-              Usuario
+            <Text className="text-2xl font-bold text-indigo-700 mb-1">
+              {getDisplayName()}
             </Text>
-            <Text className="text-gray-600">
-              usuario@ejemplo.com
+            <Text className="text-indigo-600">
+              {profile.email}
             </Text>
           </View>
         </View>
 
         {/* Content */}
-        <View className="px-6 py-8 space-y-4">
-          {/* Profile Options */}
-          <View className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <TouchableOpacity className="px-6 py-4 border-b border-gray-100">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Text className="text-lg mr-3">⚙️</Text>
-                  <Text className="text-gray-800 font-medium">Configuración</Text>
-                </View>
-                <Text className="text-gray-400">›</Text>
+        <View className="px-6 py-8">
+          {/* Información Personal */}
+          <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-4">
+            <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
+              <Text className="text-white font-semibold text-base">Información personal</Text>
+            </View>
+            
+            <View className="space-y-4">
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Nombres</Text>
+                <TextInput
+                  value={profile.nombres}
+                  onChangeText={(text) => updateProfile('nombres', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Ingresa tus nombres"
+                />
               </View>
-            </TouchableOpacity>
 
-            <TouchableOpacity className="px-6 py-4 border-b border-gray-100">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Text className="text-lg mr-3">🔔</Text>
-                  <Text className="text-gray-800 font-medium">Notificaciones</Text>
-                </View>
-                <Text className="text-gray-400">›</Text>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Apellidos</Text>
+                <TextInput
+                  value={profile.apellidos}
+                  onChangeText={(text) => updateProfile('apellidos', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Ingresa tus apellidos"
+                />
               </View>
-            </TouchableOpacity>
 
-            <TouchableOpacity className="px-6 py-4 border-b border-gray-100">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Text className="text-lg mr-3">📊</Text>
-                  <Text className="text-gray-800 font-medium">Estadísticas</Text>
-                </View>
-                <Text className="text-gray-400">›</Text>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Alias</Text>
+                <TextInput
+                  value={profile.alias}
+                  onChangeText={(text) => updateProfile('alias', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Ingresa tu alias (opcional)"
+                />
               </View>
-            </TouchableOpacity>
 
-            <TouchableOpacity className="px-6 py-4">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <Text className="text-lg mr-3">❓</Text>
-                  <Text className="text-gray-800 font-medium">Ayuda</Text>
-                </View>
-                <Text className="text-gray-400">›</Text>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Correo electrónico</Text>
+                <TextInput
+                  value={profile.email}
+                  onChangeText={(text) => updateProfile('email', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="correo@ejemplo.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
               </View>
-            </TouchableOpacity>
+
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Edad</Text>
+                <TextInput
+                  value={profile.edad}
+                  onChangeText={(text) => updateProfile('edad', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Ingresa tu edad"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Género</Text>
+                <TextInput
+                  value={profile.genero}
+                  onChangeText={(text) => updateProfile('genero', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Ingresa tu género"
+                />
+              </View>
+            </View>
           </View>
 
-          {/* Logout Button */}
-          <TouchableOpacity className="bg-red-50 border border-red-200 rounded-2xl px-6 py-4">
+          {/* Consentimiento Informado */}
+          <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-4">
+            <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-4">
+              <Text className="text-white font-semibold text-base">Consentimiento informado</Text>
+            </View>
+            
+            <View className="flex-row items-center">
+              <View className="w-6 h-6 rounded border-2 mr-3 items-center justify-center bg-indigo-400 border-indigo-400">
+                <Text className="text-white text-sm font-bold">✓</Text>
+              </View>
+              <TouchableOpacity 
+                className="flex-1"
+                onPress={() => router.push('/consent')}
+              >
+                <Text className="text-indigo-600 underline">
+                  Acepto el consentimiento informado para el uso de esta aplicación
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Contacto de Emergencia - Terapeuta */}
+          <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-4">
+            <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
+              <Text className="text-white font-semibold text-base">Contacto de Emergencia - Terapeuta</Text>
+            </View>
+            
+            <View className="space-y-4">
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <TextInput
+                  value={profile.terapeutaNombre}
+                  onChangeText={(text) => updateProfile('terapeutaNombre', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Nombre del terapeuta"
+                />
+              </View>
+
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Número de contacto</Text>
+                <TextInput
+                  value={profile.terapeutaTelefono}
+                  onChangeText={(text) => updateProfile('terapeutaTelefono', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="+1 234 567 8900"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Contacto de Emergencia Principal */}
+          <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-4">
+            <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
+              <Text className="text-white font-semibold text-base">Contacto de Emergencia - Principal</Text>
+            </View>
+            
+            <View className="space-y-4">
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <TextInput
+                  value={profile.emergenciaPrincipalNombre}
+                  onChangeText={(text) => updateProfile('emergenciaPrincipalNombre', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Nombre del contacto principal"
+                />
+              </View>
+
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Número de contacto</Text>
+                <TextInput
+                  value={profile.emergenciaPrincipalTelefono}
+                  onChangeText={(text) => updateProfile('emergenciaPrincipalTelefono', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="+1 234 567 8900"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Contacto de Emergencia Secundario */}
+          <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-4">
+            <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
+              <Text className="text-white font-semibold text-base">Contacto de Emergencia - Secundario</Text>
+            </View>
+            
+            <View className="space-y-4">
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <TextInput
+                  value={profile.emergenciaSecundariaNombre}
+                  onChangeText={(text) => updateProfile('emergenciaSecundariaNombre', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Nombre del contacto secundario"
+                />
+              </View>
+
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Número de contacto</Text>
+                <TextInput
+                  value={profile.emergenciaSecundariaTelefono}
+                  onChangeText={(text) => updateProfile('emergenciaSecundariaTelefono', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="+1 234 567 8900"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Guardar Cambios */}
+          <TouchableOpacity className="bg-indigo-400 rounded-2xl px-6 py-4 shadow-sm">
             <View className="flex-row items-center justify-center">
-              <Text className="text-lg mr-3">🚪</Text>
-              <Text className="text-red-600 font-medium">Cerrar Sesión</Text>
+              <Text className="text-lg mr-3">💾</Text>
+              <Text className="text-white font-semibold text-lg">Guardar cambios</Text>
             </View>
           </TouchableOpacity>
+
+          {/* Cerrar sesión */}
+          <Link href="/login" replace asChild>
+            <TouchableOpacity 
+              className="bg-pink-100 rounded-2xl px-6 py-4 shadow-sm mt-4 border border-pink-200 active:bg-pink-200"
+            >
+              <View className="flex-row items-center justify-center">
+                <Text className="text-pink-700 font-semibold text-lg">Cerrar sesión</Text>
+              </View>
+            </TouchableOpacity>
+          </Link>
         </View>
+
+        {/* Bottom spacing */}
+        <View className="h-8" />
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }

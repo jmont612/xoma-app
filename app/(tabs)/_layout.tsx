@@ -1,25 +1,29 @@
+import { Image } from 'expo-image';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   return (
-    <Tabs
+    <SafeAreaView style={{ flex: 1 }}>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
           backgroundColor: 'white',
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 10,
+          borderTopColor: '#bfdbfe', // blue-200 para línea superior suave
+          height: 88,
+          paddingBottom: 12,
+          paddingTop: 12,
         },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: '#374151', // gray-700
+        tabBarInactiveTintColor: '#6b7280', // gray-500
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
+          fontWeight: '600',
+          marginTop: 8,
         },
       }}
     >
@@ -27,31 +31,43 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`w-6 h-6 rounded-full ${focused ? 'bg-blue-600' : 'bg-gray-400'} items-center justify-center`}>
-              <Text className="text-white text-xs font-bold">🏠</Text>
+          tabBarIcon: ({ focused }) => (
+            <View className={`w-12 h-12 rounded-full ${focused ? 'bg-violet-400' : 'bg-violet-300'} items-center justify-center`}>
+              <Image
+                source={require('../../assets/images/home.png')}
+                resizeMode="contain"
+                style={{ width: 26, height: 26 }}
+              />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="diary"
         options={{
-          title: 'Ficha',
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`w-6 h-6 rounded-full ${focused ? 'bg-blue-600' : 'bg-gray-400'} items-center justify-center`}>
-              <Text className="text-white text-xs font-bold">📋</Text>
+          title: 'Diario',
+          tabBarIcon: ({ focused }) => (
+            <View className={`w-12 h-12 rounded-full ${focused ? 'bg-violet-400' : 'bg-violet-300'} items-center justify-center`}>
+              <Image
+                source={require('../../assets/images/diary.png')}
+                resizeMode="contain"
+                style={{ width: 26, height: 26 }}
+              />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="activities"
+        name="habilities"
         options={{
-          title: 'DBT',
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`w-6 h-6 rounded-full ${focused ? 'bg-blue-600' : 'bg-gray-400'} items-center justify-center`}>
-              <Text className="text-white text-xs font-bold">🧠</Text>
+          title: 'Habilidades',
+          tabBarIcon: ({ focused }) => (
+            <View className={`w-12 h-12 rounded-full ${focused ? 'bg-violet-400' : 'bg-violet-300'} items-center justify-center`}>
+              <Image
+                source={require('../../assets/images/habilities.png')}
+                resizeMode="contain"
+                style={{ width: 26, height: 26 }}
+              />
             </View>
           ),
         }}
@@ -60,13 +76,18 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`w-6 h-6 rounded-full ${focused ? 'bg-blue-600' : 'bg-gray-400'} items-center justify-center`}>
-              <Text className="text-white text-xs font-bold">👤</Text>
+          tabBarIcon: ({ focused }) => (
+            <View className={`w-12 h-12 rounded-full ${focused ? 'bg-violet-400' : 'bg-violet-300'} items-center justify-center`}>
+              <Image
+                source={require('../../assets/images/perfil.png')}
+                resizeMode="contain"
+                style={{ width: 26, height: 26 }}
+              />
             </View>
           ),
         }}
       />
     </Tabs>
+    </SafeAreaView>
   );
 }
