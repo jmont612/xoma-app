@@ -178,7 +178,7 @@ export default function EmergencyContacts() {
           • Línea Nacional de Prevención del Suicidio: 988
         </Text>
         <Text className="text-gray-600 text-sm mb-2">
-          • Crisis Text Line: Envía "HELLO" al 741741
+          • Crisis Text Line: Envía &quot;HELLO&quot; al 741741
         </Text>
         <Text className="text-gray-600 text-sm">
           • Emergencias: 911

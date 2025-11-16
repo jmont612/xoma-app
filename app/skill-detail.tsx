@@ -8,7 +8,15 @@ interface Technique {
   description?: string;
 }
 
-const skillData = {
+interface Skill {
+  title: string;
+  emoji: string;
+  description: string;
+  color: string;
+  techniques: Technique[];
+}
+
+const skillData: Record<string, Skill> = {
   temperature: {
     title: 'Temperatura (T)',
     emoji: '❄️',

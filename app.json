@@ -44,6 +44,10 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiUrlDev": "localhost:3000",
+      "apiUrlProd": "https://api.midominio.com"
     }
   }
 }

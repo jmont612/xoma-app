@@ -2,32 +2,42 @@ import { Image } from 'expo-image';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { login } from './lib/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // Validación básica
     if (!email || !password) {
       Alert.alert('Error', 'Por favor ingresa tu email y contraseña');
       return;
     }
 
-    // Aquí iría la lógica de login cuando se implemente el backend
-    console.log('Login attempt:', { email, password });
-    
-    // Simular login exitoso y redirigir
-    Alert.alert('Éxito', 'Iniciando sesión...', [
-      {
-        text: 'OK',
-        onPress: () => {
-          console.log('Attempting to navigate to tabs');
-          router.replace('/(tabs)');
+    try {
+      setIsSubmitting(true);
+      const { user } = await login(email, password); // usa backend real
+      Alert.alert('Éxito', 'Iniciando sesión...', [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.replace('/(tabs)');
+          }
         }
-      }
-    ]);
+      ]);
+    } catch (err: any) {
+      const msg = err?.code === 'NETWORK_ERROR'
+        ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ''}`
+        : err?.status === 401
+          ? 'Correo o contraseña incorrectos'
+          : err?.message || 'No se pudo iniciar sesión';
+      Alert.alert('Error', msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -121,10 +131,11 @@ export default function LoginScreen() {
             {/* Login Button */}
             <TouchableOpacity
               onPress={handleLogin}
-              className="bg-indigo-600 rounded-2xl py-4 shadow-lg active:bg-indigo-700 mt-6"
+              disabled={isSubmitting}
+              className={`rounded-2xl py-4 shadow-lg mt-6 ${isSubmitting ? 'bg-indigo-300' : 'bg-indigo-600 active:bg-indigo-700'}`}
             >
               <Text className="text-white text-center font-semibold text-lg">
-                Iniciar Sesión
+                {isSubmitting ? 'Ingresando…' : 'Iniciar Sesión'}
               </Text>
             </TouchableOpacity>
 
@@ -144,15 +155,6 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </Link>
             </View>
-          </View>
-
-          {/* Back to Home */}
-          <View className="mt-8">
-            <Link href="/" asChild>
-              <TouchableOpacity className="items-center py-3">
-                <Text className="text-indigo-500">← Volver al inicio</Text>
-              </TouchableOpacity>
-            </Link>
           </View>
         </View>
         </ImageBackground>

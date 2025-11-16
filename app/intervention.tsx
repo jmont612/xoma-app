@@ -54,7 +54,7 @@ export default function InterventionScreen() {
   };
 
   const handleStartSkill = (skillId: string) => {
-    router.push({ pathname: '/skill-detail', params: { id: skillId } });
+    router.push({ pathname: '/skill-detail', params: { skillId } });
   };
 
   const handleCall = async (phone: string) => {

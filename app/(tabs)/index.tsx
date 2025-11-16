@@ -249,7 +249,7 @@ export default function HomeScreen() {
               <View className="flex-1">
                 <Text className="text-indigo-700 text-lg font-semibold mb-2">Frase del día</Text>
                 <Text className="text-indigo-600 text-sm"> 
-                  "Está bien sentir lo que sientes. Date permiso para hacer una pausa y respirar, no tienes que resolverlo todo ahora."
+                  &quot;Está bien sentir lo que sientes. Date permiso para hacer una pausa y respirar, no tienes que resolverlo todo ahora.&quot;
                 </Text>
               </View>
             </View>

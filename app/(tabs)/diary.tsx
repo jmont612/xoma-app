@@ -324,7 +324,7 @@ export default function DiaryScreen() {
                 </Text>
                 <View className="bg-indigo-400 px-6 py-3 rounded-full shadow-sm">
                   <Text className="text-white font-semibold">
-                    Crear primer registro
+                    Crear registro
                   </Text>
                 </View>
               </TouchableOpacity>

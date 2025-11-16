@@ -43,7 +43,7 @@ export default function ZenScreen() {
 
   // Efecto para el temporizador
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     
     if (isTimerActive && timer > 0) {
       interval = setInterval(() => {

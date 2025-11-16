@@ -1,6 +1,7 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { getMe, updateUser, logout } from '../lib/auth';
 
 interface UserProfile {
   nombres: string;
@@ -51,6 +52,69 @@ export default function ProfileScreen() {
 
   const updateProfile = (field: keyof UserProfile, value: string | boolean) => {
     setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
+  const [userId, setUserId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const me = await getMe();
+        setUserId(me.id);
+        setProfile(prev => ({
+          ...prev,
+          nombres: me.firstName || '',
+          apellidos: me.lastName || '',
+          alias: me.username || '',
+          email: me.email || '',
+          edad: me.age ? String(me.age) : '',
+          genero: me.gender || '',
+          consentimiento: !!me.consentAccepted,
+        }));
+      } catch (e: any) {
+        Alert.alert('Error', e?.message || 'No se pudo cargar el perfil');
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      if (!userId) {
+        Alert.alert('Error', 'Usuario no cargado');
+        return;
+      }
+      const payload = {
+        firstName: profile.nombres,
+        lastName: profile.apellidos,
+        username: profile.alias,
+        email: profile.email,
+        age: profile.edad ? Number(profile.edad) : undefined,
+        gender: profile.genero,
+        consentAccepted: profile.consentimiento,
+      };
+      const cleanPayload = Object.fromEntries(
+        Object.entries(payload).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+      );
+      const updated = await updateUser(userId, cleanPayload);
+      setProfile(prev => ({
+        ...prev,
+        nombres: updated.firstName || prev.nombres,
+        apellidos: updated.lastName || prev.apellidos,
+        alias: updated.username || prev.alias,
+        email: updated.email || prev.email,
+        edad: updated.age ? String(updated.age) : prev.edad,
+        genero: updated.gender || prev.genero,
+        consentimiento: !!updated.consentAccepted,
+      }));
+      Alert.alert('Éxito', 'Perfil actualizado correctamente');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'No se pudo actualizar el perfil');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
   };
 
   return (
@@ -265,7 +329,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Guardar Cambios */}
-          <TouchableOpacity className="bg-indigo-400 rounded-2xl px-6 py-4 shadow-sm">
+          <TouchableOpacity className="bg-indigo-400 rounded-2xl px-6 py-4 shadow-sm" onPress={handleSave}>
             <View className="flex-row items-center justify-center">
               <Text className="text-lg mr-3">💾</Text>
               <Text className="text-white font-semibold text-lg">Guardar cambios</Text>
@@ -273,15 +337,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {/* Cerrar sesión */}
-          <Link href="/login" replace asChild>
-            <TouchableOpacity 
-              className="bg-pink-100 rounded-2xl px-6 py-4 shadow-sm mt-4 border border-pink-200 active:bg-pink-200"
-            >
-              <View className="flex-row items-center justify-center">
-                <Text className="text-pink-700 font-semibold text-lg">Cerrar sesión</Text>
-              </View>
-            </TouchableOpacity>
-          </Link>
+          {/* Reemplaza el Link por un botón con handler */}
+          <TouchableOpacity 
+            className="bg-pink-100 rounded-2xl px-6 py-4 shadow-sm mt-4 border border-pink-200 active:bg-pink-200"
+            onPress={handleLogout}
+          >
+            <View className="flex-row items-center justify-center">
+              <Text className="text-pink-700 font-semibold text-lg">Cerrar sesión</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Bottom spacing */}
