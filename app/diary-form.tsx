@@ -1,6 +1,8 @@
 import Slider from '@react-native-community/slider';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { post, put, get } from './lib/api';
+import { loadUser } from './lib/storage';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 
 interface EmotionState {
@@ -24,33 +26,79 @@ interface YesNoQuestions {
   conductaImpulsiva: boolean | null;
 }
 
-export default function DiaryFormScreen() {
-  const [emotions, setEmotions] = useState<EmotionState>({
-    alegria: 5,
-    tristeza: 5,
-    miedo: 5,
-    ira: 5,
-    culpa: 5,
-    verguenza: 5,
-    rechazo: 5,
-  });
+const DEFAULT_EMOTIONS: EmotionState = { alegria: 5, tristeza: 5, miedo: 5, ira: 5, culpa: 5, verguenza: 5, rechazo: 5 };
+const DEFAULT_YESNO: YesNoQuestions = { pensoAutolesion: null, autolesion: null, ideacionSuicida: null, intentoSuicidio: null, pensoSustancias: null, usoSustancias: null, pensoConductaImpulsiva: null, conductaImpulsiva: null };
 
-  const [yesNoAnswers, setYesNoAnswers] = useState<YesNoQuestions>({
-    pensoAutolesion: null,
-    autolesion: null,
-    ideacionSuicida: null,
-    intentoSuicidio: null,
-    pensoSustancias: null,
-    usoSustancias: null,
-    pensoConductaImpulsiva: null,
-    conductaImpulsiva: null,
-  });
+export default function DiaryFormScreen() {
+  const { diaryId } = useLocalSearchParams<{ diaryId?: string }>();
+  const editingDiaryId = diaryId ? Number(diaryId) : null;
+  const [emotions, setEmotions] = useState<EmotionState>(DEFAULT_EMOTIONS);
+
+  const [yesNoAnswers, setYesNoAnswers] = useState<YesNoQuestions>(DEFAULT_YESNO);
 
   const [textAnswers, setTextAnswers] = useState({
     dificultad: '',
     ayuda: '',
   });
   const MAX_REFLEXION_CHARS = 300;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const baselineRef = useRef<{ emotions: EmotionState; yesNo: YesNoQuestions; text: { dificultad: string; ayuda: string } }>({ emotions: DEFAULT_EMOTIONS, yesNo: DEFAULT_YESNO, text: { dificultad: '', ayuda: '' } });
+
+  useEffect(() => {
+    (async () => {
+      if (!editingDiaryId) return;
+      try {
+        const user = await loadUser<any>();
+        const userId = (user?.id ?? user?.userId ?? 1) as number;
+        const res = await get<{ data: any[] }>(`/diaries/user/${userId}`);
+        const list = Array.isArray(res.data) ? res.data : (res as any)?.data || [];
+        const found = list.find((d: any) => Number(d.id) === editingDiaryId);
+        if (!found) return;
+        const moodKeyById: Record<number, keyof EmotionState> = { 1: 'alegria', 2: 'tristeza', 3: 'miedo', 4: 'ira', 5: 'culpa', 6: 'verguenza', 7: 'rechazo' };
+        const newEmotions: EmotionState = { alegria: 5, tristeza: 5, miedo: 5, ira: 5, culpa: 5, verguenza: 5, rechazo: 5 };
+        (found.moodStates || []).forEach((ms: any) => {
+          const key = moodKeyById[ms.moodStateId as number];
+          if (key) newEmotions[key] = Number(ms.rating) || 0;
+        });
+        setEmotions(newEmotions);
+
+        const behaviorKeyById: Record<number, keyof YesNoQuestions> = {
+          1: 'pensoAutolesion', 2: 'autolesion', 3: 'ideacionSuicida', 4: 'intentoSuicidio', 5: 'pensoSustancias', 6: 'usoSustancias', 7: 'pensoConductaImpulsiva', 8: 'conductaImpulsiva'
+        };
+        const newYesNo: YesNoQuestions = {
+          pensoAutolesion: null, autolesion: null, ideacionSuicida: null, intentoSuicidio: null, pensoSustancias: null, usoSustancias: null, pensoConductaImpulsiva: null, conductaImpulsiva: null
+        };
+        (found.behaviors || []).forEach((b: any) => {
+          const key = behaviorKeyById[b.behaviorId as number];
+          if (key) newYesNo[key] = !!b.hasHappened;
+        });
+        setYesNoAnswers(newYesNo);
+
+        const filledText = {
+          dificultad: found.reflections?.mostDifficultToday || '',
+          ayuda: found.reflections?.mostHelpfulToday || '',
+        };
+        setTextAnswers(filledText);
+        baselineRef.current = { emotions: newEmotions, yesNo: newYesNo, text: filledText };
+      } catch {}
+    })();
+  }, [editingDiaryId]);
+
+  const textFilled = useMemo(() => {
+    return textAnswers.dificultad.trim().length > 0 && textAnswers.ayuda.trim().length > 0;
+  }, [textAnswers]);
+
+  const isComplete = useMemo(() => {
+    const yesnoOk = Object.values(yesNoAnswers).every(v => v !== null);
+    return yesnoOk && textFilled;
+  }, [yesNoAnswers, textFilled]);
+
+  const isDirty = useMemo(() => {
+    const emotionsChanged = JSON.stringify(emotions) !== JSON.stringify(baselineRef.current.emotions);
+    const yesNoChanged = JSON.stringify(yesNoAnswers) !== JSON.stringify(baselineRef.current.yesNo);
+    const textChanged = JSON.stringify(textAnswers) !== JSON.stringify(baselineRef.current.text);
+    return emotionsChanged || yesNoChanged || textChanged;
+  }, [emotions, yesNoAnswers, textAnswers]);
 
   const emotionConfig = [
     { key: 'alegria', label: 'Alegría', emoji: '😊' },
@@ -147,7 +195,7 @@ export default function DiaryFormScreen() {
     setYesNoAnswers(prev => ({ ...prev, [question]: value }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validar que todas las preguntas de sí/no estén respondidas
     const unansweredQuestions = Object.values(yesNoAnswers).some(answer => answer === null);
     
@@ -156,17 +204,47 @@ export default function DiaryFormScreen() {
       return;
     }
 
-    if (!textAnswers.dificultad.trim() || !textAnswers.ayuda.trim()) {
-      Alert.alert('Formulario incompleto', 'Por favor completa los campos de texto.');
+    if (!isComplete) {
+      Alert.alert('Formulario incompleto', 'Por favor completa todos los campos requeridos.');
       return;
     }
+    try {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      const user = await loadUser<any>();
+      const userId = (user?.id ?? user?.userId ?? 1) as number;
 
-    // Aquí se guardaría la información
-    Alert.alert(
-      'Registro guardado',
-      'Tu entrada del diario ha sido guardada exitosamente.',
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+      const moodStateOrder: (keyof EmotionState)[] = ['alegria', 'tristeza', 'miedo', 'ira', 'culpa', 'verguenza', 'rechazo'];
+      const moodStates = moodStateOrder.map((key, idx) => ({ moodStateId: idx + 1, rating: Math.round(emotions[key]) }));
+
+      const behaviorOrder: (keyof YesNoQuestions)[] = ['pensoAutolesion', 'autolesion', 'ideacionSuicida', 'intentoSuicidio', 'pensoSustancias', 'usoSustancias', 'pensoConductaImpulsiva', 'conductaImpulsiva'];
+      const behaviors = behaviorOrder.map((key, idx) => ({ behaviorId: idx + 1, hasHappened: yesNoAnswers[key] === true }));
+
+      const payload = {
+        userId,
+        moodStates,
+        behaviors,
+        reflections: {
+          mostDifficultToday: textAnswers.dificultad.trim(),
+          mostHelpfulToday: textAnswers.ayuda.trim(),
+        },
+      };
+
+      if (editingDiaryId) {
+        await put<any>(`/diaries/${editingDiaryId}`, payload);
+        Alert.alert('Cambios guardados', 'Tu registro ha sido actualizado.', [{ text: 'OK', onPress: () => router.back() }]);
+      } else {
+        await post<any>('/diaries', payload);
+        Alert.alert('Registro guardado', 'Tu entrada del diario ha sido guardada exitosamente.', [{ text: 'OK', onPress: () => router.back() }]);
+      }
+    } catch (err: any) {
+      const msg = err?.code === 'NETWORK_ERROR'
+        ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ''}`
+        : err?.message || 'No se pudo guardar el diario';
+      Alert.alert('Error', msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -354,10 +432,11 @@ export default function DiaryFormScreen() {
           {/* Botón de Guardar */}
           <TouchableOpacity
             onPress={handleSubmit}
-            className="bg-indigo-400 py-4 rounded-2xl shadow-sm active:bg-indigo-500"
+            disabled={isSubmitting || !isComplete || !isDirty}
+            className={`py-4 rounded-2xl shadow-sm ${isSubmitting || !isComplete || !isDirty ? 'bg-indigo-300' : 'bg-indigo-400 active:bg-indigo-500'}`}
           >
             <Text className="text-white text-lg font-semibold text-center">
-              Guardar Registro
+              {isSubmitting ? 'Guardando…' : editingDiaryId ? 'Guardar Cambios' : 'Guardar Registro'}
             </Text>
           </TouchableOpacity>
 

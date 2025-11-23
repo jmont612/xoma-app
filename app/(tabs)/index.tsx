@@ -1,12 +1,16 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { DeviceEventEmitter, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { get } from '../lib/api';
+import { toDateFromUnknown, toLocalYYYYMMDD } from '../lib/date';
+import { loadUser } from '../lib/storage';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [minSelectableDate, setMinSelectableDate] = useState(new Date());
 
   // Función para generar el calendario del mes
   const generateCalendar = () => {
@@ -19,10 +23,14 @@ export default function HomeScreen() {
 
     const days = [];
     const today = new Date();
+    const minDay = new Date(minSelectableDate);
+    minDay.setHours(0, 0, 0, 0);
     
     for (let i = 0; i < 42; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
+      const curMid = new Date(currentDate);
+      curMid.setHours(0, 0, 0, 0);
       
       days.push({
         date: currentDate,
@@ -30,6 +38,8 @@ export default function HomeScreen() {
         isCurrentMonth: currentDate.getMonth() === month,
         isToday: currentDate.toDateString() === today.toDateString(),
         isSelected: currentDate.toDateString() === selectedDate.toDateString(),
+        isFuture: currentDate > today,
+        isBeforeReg: curMid < minDay,
       });
     }
     
@@ -90,9 +100,121 @@ export default function HomeScreen() {
   };
 
   const currentDayData = getDayData(selectedDate);
+  const [emaCount, setEmaCount] = useState<number>(0);
+  const [daySkillCount, setDaySkillCount] = useState<number>(0);
+  const [daySkillNames, setDaySkillNames] = useState<string[]>([]);
+  const daySkillsFetchLockRef = useRef(false);
+
+  
+
+  const loadEmaCount = useCallback(async (date: Date) => {
+    try {
+      const user = await loadUser<any>();
+      const userId = (user?.id ?? user?.userId ?? 1) as number;
+      const res = await get<{ data: any[] }>(`/ema-logs/user/${userId}`);
+      const list = Array.isArray(res?.data) ? res.data : (res as any)?.data || [];
+      const target = new Date(date);
+      const targetStr = toLocalYYYYMMDD(target);
+      const count = list.filter((item: any) => {
+        const raw = item?.createdAt || item?.date || item?.logDate || item?.timestamp;
+        const dt = typeof raw === 'number' ? new Date(raw) : new Date(String(raw || new Date()));
+        const localStr = toLocalYYYYMMDD(dt);
+        return localStr === targetStr;
+      }).length;
+      setEmaCount(Math.floor(count / 6));
+    } catch {
+      setEmaCount(0);
+    }
+  }, []);
+
+  useEffect(() => { loadEmaCount(selectedDate); }, [selectedDate, loadEmaCount]);
+  useFocusEffect(useCallback(() => { loadEmaCount(selectedDate); }, [selectedDate, loadEmaCount]));
+
+  const loadDaySkills = useCallback(async (date?: Date) => {
+    if (daySkillsFetchLockRef.current) return;
+    daySkillsFetchLockRef.current = true;
+    try {
+      const me = await loadUser<any>();
+      const userId = (me?.id ?? me?.userId ?? 1) as number;
+      const target = new Date(date ?? selectedDate);
+      const targetStr = toLocalYYYYMMDD(target);
+      const tzOffsetMin = new Date().getTimezoneOffset();
+      const adj = new Date(target);
+      adj.setDate(target.getDate() + (tzOffsetMin > 0 ? 1 : (tzOffsetMin < 0 ? -1 : 0)));
+      const adjStr = toLocalYYYYMMDD(adj);
+      const datesToQuery = Array.from(new Set([targetStr, adjStr]));
+      const results = await Promise.all(
+        datesToQuery.map(d => get<{ data: any[] }>(`/user-skill-activities/user/${userId}?date=${d}`))
+      );
+      const merged: any[] = [];
+      results.forEach((res, idx) => {
+        const arr: any[] = Array.isArray(res?.data) ? res.data : (res as any)?.data || [];
+        merged.push(...arr);
+        console.log('loadDaySkills query fecha:', datesToQuery[idx], 'items:', arr.length);
+      });
+      const activities: any[] = merged
+        .filter((sa: any) => toLocalYYYYMMDD(toDateFromUnknown(sa?.createdAt ?? sa?.created_at ?? sa?.date ?? sa?.timestamp)) === targetStr)
+        .filter((sa, idx, arr) => arr.findIndex(x => String(x?.id ?? `${x?.subSkill?.id}-${idx}`) === String(sa?.id ?? `${sa?.subSkill?.id}-${idx}`)) === idx);
+      const names: string[] = [];
+      let completedCount = 0;
+      activities.forEach((sa: any) => {
+        const status = String(sa?.status ?? '').trim().toLowerCase();
+        if (status === 'completed') {
+          completedCount += 1;
+          const n = sa?.subSkill?.name || sa?.name || 'Habilidad';
+          names.push(String(n));
+        }
+      });
+      console.log('loadDaySkills completadas:', completedCount);
+      const uniqueNames = Array.from(new Set(names));
+      setDaySkillCount(completedCount);
+      setDaySkillNames(uniqueNames);
+    } catch {
+      setDaySkillCount(0);
+      setDaySkillNames([]);
+    } finally {
+      daySkillsFetchLockRef.current = false;
+    }
+  }, [selectedDate]);
+
+  
+  useFocusEffect(useCallback(() => { loadDaySkills(); }, [loadDaySkills]));
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('skill-completed', () => {
+      const today = new Date();
+      setSelectedDate(today);
+      loadDaySkills(today);
+      loadEmaCount(today);
+    });
+    return () => { sub.remove(); };
+  }, [loadDaySkills, loadEmaCount]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await loadUser<any>();
+        const raw = me?.createdAt ?? me?.created_at ?? me?.registrationDate ?? me?.registeredAt;
+        const reg = raw ? toDateFromUnknown(raw) : new Date();
+        const mid = new Date(reg);
+        mid.setHours(0, 0, 0, 0);
+        setMinSelectableDate(mid);
+      } catch {
+        const mid = new Date();
+        mid.setHours(0, 0, 0, 0);
+        setMinSelectableDate(mid);
+      }
+    })();
+  }, []);
 
   // Función para manejar selección de fecha
   const handleDateSelect = (date: Date) => {
+    const today = new Date();
+    const minDay = new Date(minSelectableDate);
+    minDay.setHours(0, 0, 0, 0);
+    const dMid = new Date(date);
+    dMid.setHours(0, 0, 0, 0);
+    if (dMid < minDay) return;
+    if (date > today) return;
     setSelectedDate(date);
     setShowCalendar(false);
   };
@@ -114,10 +236,14 @@ export default function HomeScreen() {
     const weekDays = [];
     const dayNames = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sáb', 'Do'];
     const today = new Date();
+    const minDay = new Date(minSelectableDate);
+    minDay.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 7; i++) {
       const currentDay = new Date(startOfWeek);
       currentDay.setDate(startOfWeek.getDate() + i);
+      const curMid = new Date(currentDay);
+      curMid.setHours(0, 0, 0, 0);
       
       weekDays.push({
         day: dayNames[i],
@@ -125,6 +251,8 @@ export default function HomeScreen() {
         fullDate: new Date(currentDay),
         isToday: currentDay.toDateString() === today.toDateString(),
         isSelected: currentDay.toDateString() === selectedDate.toDateString(),
+        isFuture: currentDay > today,
+        isBeforeReg: curMid < minDay,
       });
     }
 
@@ -161,10 +289,7 @@ export default function HomeScreen() {
     router.push('/emergency-contacts');
   };
 
-  // Nuevo: ir a Intervenciones
-  const handleIntervention = () => {
-    router.push('/intervention'); // Abre la vista de intervención (riesgo medio por defecto)
-  };
+  
 
   return (
     <ImageBackground 
@@ -198,15 +323,15 @@ export default function HomeScreen() {
               <TouchableOpacity 
                 key={index} 
                 className="items-center"
-                onPress={() => setSelectedDate(day.fullDate)}
+                onPress={() => (!day.isFuture && !day.isBeforeReg) ? setSelectedDate(day.fullDate) : null}
               >
                 <Text className="text-indigo-500 text-sm mb-2">{day.day}</Text>
                 <View className={`w-10 h-10 rounded-full items-center justify-center ${
                   day.isSelected ? 'bg-indigo-400' : 
-                  day.isToday ? 'bg-indigo-300' : 'bg-white/60'
+                  day.isToday ? 'bg-indigo-300' : ((day.isFuture || day.isBeforeReg) ? 'bg-white/40' : 'bg-white/60')
                 }`}>
                   <Text className={`font-bold ${
-                    day.isSelected || day.isToday ? 'text-white' : 'text-indigo-600'
+                    day.isSelected || day.isToday ? 'text-white' : ((day.isFuture || day.isBeforeReg) ? 'text-indigo-300' : 'text-indigo-600')
                   }`}>
                     {day.date}
                   </Text>
@@ -231,7 +356,7 @@ export default function HomeScreen() {
               <Text className="text-indigo-700 text-lg font-semibold">¿Cómo me siento ahora?</Text>
             </View>
             <Text className="text-indigo-500 text-sm mb-4">
-              Evaluaciones hoy: 2
+              {selectedDate.toDateString() === new Date().toDateString() ? 'Evaluaciones hoy' : 'Evaluaciones del día'}: {emaCount}
             </Text>
             <TouchableOpacity
               onPress={() => handleWriteDiary('evaluacion-emocional')}
@@ -255,21 +380,27 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Intervención rápida */}
           <View className="bg-pink-100 rounded-2xl mb-6 p-6">
             <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-indigo-700 text-lg font-semibold">Intervención</Text>
+              <Text className="text-indigo-700 text-lg font-semibold">Habilidades realizadas</Text>
             </View>
             <Text className="text-indigo-500 text-sm mb-4">
-              Accede a técnicas y contactos de ayuda.
+              {selectedDate.toDateString() === new Date().toDateString() ? 'Hoy' : 'Del día'}: {daySkillCount}
             </Text>
-            <TouchableOpacity
-              onPress={handleIntervention}
-              className="bg-indigo-400 rounded-xl py-3"
-            >
-              <Text className="text-white text-center font-semibold">Abrir</Text>
-            </TouchableOpacity>
+            <View className="flex-row flex-wrap">
+              {daySkillNames.length === 0 ? (
+                <Text className="text-indigo-500">Sin habilidades realizadas</Text>
+              ) : (
+                daySkillNames.map((name, idx) => (
+                  <View key={`${name}-${idx}`} className="bg-white rounded-full px-4 py-2 mr-2 mb-2 border border-indigo-100 shadow-sm">
+                    <Text className="text-indigo-700 text-sm">{name}</Text>
+                  </View>
+                ))
+              )}
+            </View>
           </View>
+
+          
         </View>
 
         {/* Espaciado inferior */}
@@ -312,16 +443,16 @@ export default function HomeScreen() {
               {generateCalendar().map((day, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => day.isCurrentMonth ? handleDateSelect(day.date) : null}
+                  onPress={() => (day.isCurrentMonth && !day.isFuture && !day.isBeforeReg) ? handleDateSelect(day.date) : null}
                   className={`w-8 h-8 items-center justify-center m-1 rounded ${
                     day.isSelected ? 'bg-indigo-400' : 
                     day.isToday ? 'bg-indigo-300' : 
-                    day.isCurrentMonth ? 'bg-white' : 'bg-transparent'
+                    day.isCurrentMonth ? ((day.isFuture || day.isBeforeReg) ? 'bg-white/40' : 'bg-white') : 'bg-transparent'
                   }`}
                 >
                   <Text className={`text-sm ${
                     day.isSelected || day.isToday ? 'text-white' :
-                    day.isCurrentMonth ? 'text-indigo-600' : 'text-indigo-300'
+                    day.isCurrentMonth ? ((day.isFuture || day.isBeforeReg) ? 'text-indigo-300' : 'text-indigo-600') : 'text-indigo-300'
                   }`}>
                     {day.day}
                   </Text>

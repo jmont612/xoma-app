@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ImageBackground, Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { get } from './lib/api';
+import { loadUser } from './lib/storage';
 
 type RiskLevel = 'high' | 'medium';
 
-interface Skill {
-  id: string;
-  title: string;
-  techniques: string[];
-  durationMin: number;
+interface SubSkillItem {
+  id: number;
+  name: string;
 }
 
 interface EmergencyContact {
@@ -20,41 +20,91 @@ interface EmergencyContact {
 
 export default function InterventionScreen() {
   const router = useRouter();
-  const { risk } = useLocalSearchParams<{ risk?: string }>();
+  const { risk, data } = useLocalSearchParams<{ risk?: string; data?: string }>();
 
   const riskLevel: RiskLevel = (risk === 'high' || risk === 'medium') ? risk : 'medium';
+  const responseData = useMemo(() => {
+    try {
+      return data ? JSON.parse(decodeURIComponent(data)) : null;
+    } catch {
+      return null;
+    }
+  }, [data]);
   const [step, setStep] = useState<number>(0);
 
   // Habilidades rápidas sugeridas
-  const allSkills: Skill[] = [
-    { id: 'skill1', title: 'Técnicas disponibles', techniques: ['Un lugar tranquilo', 'Hielos'], durationMin: 5 },
-    { id: 'skill2', title: 'Respiración y conexión', techniques: ['Respira 4-7-8', 'Enraíza con 5 sentidos'], durationMin: 5 },
-  ];
+  const normalizedSubSkills = useMemo<SubSkillItem[]>(() => {
+    const raw = (responseData?.data?.recommendedSubSkills || responseData?.recommendedSubSkills || responseData?.data?.subSkills || responseData?.subSkills || []) as any[];
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+    const result: SubSkillItem[] = [];
+    for (const it of raw) {
+      const id = typeof it === 'number' ? it : Number(it?.id);
+      const name = typeof it === 'string' ? it : (it?.name || 'Sub habilidad');
+      if (Number.isFinite(id) && id > 0) {
+        if (!result.find(r => r.id === id)) result.push({ id, name });
+      }
+    }
+    return result;
+  }, [responseData]);
 
-  const skillsToShow = useMemo(() => {
-    return riskLevel === 'high' ? allSkills.slice(0, 1) : allSkills.slice(0, 2);
-  }, [riskLevel]);
+  const subSkillsToShow = useMemo(() => {
+    const base = normalizedSubSkills;
+    return riskLevel === 'high' ? base.slice(0, 1) : base;
+  }, [riskLevel, normalizedSubSkills]);
 
-  // Contactos de emergencia (reutilizable del screen de contactos)
-  const emergencyContacts: EmergencyContact[] = [
-    { id: '1', name: 'Terapeuta', phone: '+1234567890' },
-    { id: '2', name: 'Contacto Principal', phone: '+0987654321' },
-    { id: '3', name: 'Contacto Secundario', phone: '+1122334455' }
-  ];
+  // Contactos de emergencia provenientes de la respuesta de EMA
+  const emergencyContacts = useMemo<EmergencyContact[]>(() => {
+    const raw = (responseData?.data?.emergencyContacts || (responseData as any)?.emergencyContacts || []) as any[];
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set<string>();
+    const out: EmergencyContact[] = [];
+    for (const c of raw) {
+      const id = String(c?.id ?? Math.random());
+      const firstName = String(c?.firstName ?? '').trim();
+      const lastName = String(c?.lastName ?? '').trim();
+      const name = [firstName, lastName].filter(Boolean).join(' ') || 'Contacto';
+      const phone = String(c?.phoneNumber ?? c?.phone ?? '').trim();
+      const dedupeKey = `${name}|${phone}`;
+      if (!seen.has(dedupeKey)) {
+        seen.add(dedupeKey);
+        out.push({ id, name, phone });
+      }
+    }
+    return out;
+  }, [responseData]);
+
+  const [contactsState, setContactsState] = useState<EmergencyContact[]>([]);
+  useEffect(() => { setContactsState(emergencyContacts); }, [emergencyContacts]);
+  useEffect(() => {
+    const fetchFallback = async () => {
+      try {
+        if (riskLevel !== 'high') return;
+        if (contactsState.length > 0) return;
+        const me = await loadUser<any>();
+        const res = await get<{ data: any[] }>(`/emergency-contacts/user/${me?.id ?? me?.userId ?? 0}`);
+        const arr = Array.isArray(res?.data) ? res!.data! : [];
+        const out: EmergencyContact[] = arr.map((c: any) => ({
+          id: String(c?.id ?? Math.random()),
+          name: [String(c?.firstName ?? '').trim(), String(c?.lastName ?? '').trim()].filter(Boolean).join(' ') || 'Contacto',
+          phone: String(c?.phoneNumber ?? c?.phone ?? '').trim()
+        }));
+        if (out.length > 0) setContactsState(out);
+      } catch {}
+    };
+    fetchFallback();
+  }, [riskLevel, contactsState.length]);
 
   const goNext = () => {
-    // Para riesgo alto hay 3 pasos: Intro -> Habilidad -> Contactos
-    // Para riesgo medio hay 2 pasos: Intro -> Habilidades
-    const maxStep = riskLevel === 'high' ? 2 : 1;
+    const maxStep = 1;
     if (step < maxStep) {
       setStep(step + 1);
     } else {
-      router.back();
+      router.replace('/(tabs)');
     }
   };
 
-  const handleStartSkill = (skillId: string) => {
-    router.push({ pathname: '/skill-detail', params: { skillId } });
+  const handleStartSubSkill = (subSkillId: number) => {
+    router.push({ pathname: '/sub-skill', params: { subSkillId: String(subSkillId) } });
   };
 
   const handleCall = async (phone: string) => {
@@ -85,7 +135,7 @@ export default function InterventionScreen() {
         <View className="px-6 pt-16 pb-4">
           <View className="flex-row items-center justify-between">
             <View />
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')}>
               <Text className="text-white font-medium">Saltar</Text>
             </TouchableOpacity>
           </View>
@@ -115,65 +165,55 @@ export default function InterventionScreen() {
           </View>
         )}
 
-        {/* Paso 1: Habilidades */}
         {step === 1 && (
           <View className="px-6">
-            {skillsToShow.map((skill, index) => (
-              <View key={skill.id} className="bg-white/80 rounded-2xl p-6 mb-6 border border-indigo-100 shadow-sm">
+            {subSkillsToShow.map((sub, index) => (
+              <View key={sub.id} className="bg-white/80 rounded-2xl p-6 mb-6 border border-indigo-100 shadow-sm">
                 <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
                   <Text className="text-white font-semibold text-base">
-                    {riskLevel === 'high' ? 'Habilidad' : `Habilidad ${index + 1}`}
+                    {riskLevel === 'high' ? 'Sub habilidad' : `Sub habilidad ${index + 1}`}
                   </Text>
                 </View>
-
                 <View className="mb-4">
-                  {skill.techniques.map((t, i) => (
-                    <Text key={i} className="text-indigo-600 mb-1">{t}</Text>
-                  ))}
-                </View>
-
-                {/* Duración pill */}
-                <View className="items-start mb-4">
-                  <View className="bg-pink-50 px-4 py-2 rounded-full border border-pink-200 shadow-sm">
-                    <Text className="text-indigo-600 text-sm">Duración {skill.durationMin} min.</Text>
-                  </View>
+                  <Text className="text-indigo-700 font-semibold">{sub.name}</Text>
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => handleStartSkill(skill.id)}
+                  onPress={() => handleStartSubSkill(sub.id)}
                   className="bg-indigo-400 rounded-2xl py-3 items-center shadow-sm"
                 >
                   <Text className="text-white font-semibold">Comenzar</Text>
                 </TouchableOpacity>
               </View>
             ))}
-          </View>
-        )}
 
-        {/* Paso 2: Contactos (solo riesgo alto) */}
-        {step === 2 && riskLevel === 'high' && (
-          <View className="px-6">
-            <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-6">
-              <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
-                <Text className="text-white font-semibold text-base">Contactos de Emergencia</Text>
-              </View>
-
-              {emergencyContacts.map((contact) => (
-                <View key={contact.id} className="bg-yellow-50 rounded-2xl p-4 mb-3 border border-yellow-200 shadow-sm">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-indigo-700 font-medium">{contact.name}</Text>
-                    <View className="flex-row items-center">
-                      <TouchableOpacity onPress={() => handleCall(contact.phone)} className="mr-4">
-                        <Ionicons name="call" size={20} color="#6b7280" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleWhatsapp(contact.phone)}>
-                        <Ionicons name="logo-whatsapp" size={20} color="#6b7280" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+            {riskLevel === 'high' && (
+              <View className="bg-white/80 rounded-2xl p-6 border border-indigo-100 shadow-sm mb-6">
+                <View className="bg-indigo-400 rounded-xl px-4 py-2 mb-6">
+                  <Text className="text-white font-semibold text-base">Contactos de Emergencia</Text>
                 </View>
-              ))}
-            </View>
+
+                {contactsState.length === 0 ? (
+                  <Text className="text-indigo-600">Aún no hay un contacto registrado</Text>
+                ) : (
+                  contactsState.map((contact) => (
+                    <View key={contact.id} className="bg-yellow-50 rounded-2xl p-4 mb-3 border border-yellow-200 shadow-sm">
+                      <View className="flex-row items-center justify-between">
+                        <Text className="text-indigo-700 font-medium">{contact.name}</Text>
+                        <View className="flex-row items-center">
+                          <TouchableOpacity onPress={() => handleCall(contact.phone)} className="mr-4">
+                            <Ionicons name="call" size={20} color="#6b7280" />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleWhatsapp(contact.phone)}>
+                            <Ionicons name="logo-whatsapp" size={20} color="#6b7280" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </View>
         )}
 

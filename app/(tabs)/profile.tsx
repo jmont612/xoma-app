@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
-import { getMe, updateUser, logout } from '../lib/auth';
+import React, { useMemo, useRef, useState } from 'react';
+import { Alert, Image, ImageBackground, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { get, post } from '../lib/api';
+import { getMe, logout, updateUser } from '../lib/auth';
 
 interface UserProfile {
   nombres: string;
@@ -12,10 +13,13 @@ interface UserProfile {
   genero: string;
   consentimiento: boolean;
   terapeutaNombre: string;
+  terapeutaApellido: string;
   terapeutaTelefono: string;
   emergenciaPrincipalNombre: string;
+  emergenciaPrincipalApellido: string;
   emergenciaPrincipalTelefono: string;
   emergenciaSecundariaNombre: string;
+  emergenciaSecundariaApellido: string;
   emergenciaSecundariaTelefono: string;
 }
 
@@ -28,13 +32,17 @@ export default function ProfileScreen() {
     edad: '22',
     genero: 'Femenino',
     consentimiento: true,
-    terapeutaNombre: 'Dr. Carlos Mendoza',
-    terapeutaTelefono: '+1 234 567 8901',
-    emergenciaPrincipalNombre: 'Ana González (Madre)',
-    emergenciaPrincipalTelefono: '+1 234 567 8902',
-    emergenciaSecundariaNombre: 'Luis González (Hermano)',
-    emergenciaSecundariaTelefono: '+1 234 567 8903'
+    terapeutaNombre: '',
+    terapeutaApellido: '',
+    terapeutaTelefono: '',
+    emergenciaPrincipalNombre: '',
+    emergenciaPrincipalApellido: '',
+    emergenciaPrincipalTelefono: '',
+    emergenciaSecundariaNombre: '',
+    emergenciaSecundariaApellido: '',
+    emergenciaSecundariaTelefono: ''
   });
+  const baselineRef = useRef<UserProfile | null>(null);
 
   const getAvatarInitial = () => {
     if (profile.alias && profile.alias.trim()) {
@@ -61,8 +69,7 @@ export default function ProfileScreen() {
       try {
         const me = await getMe();
         setUserId(me.id);
-        setProfile(prev => ({
-          ...prev,
+        const baseUpdated: UserProfile = {
           nombres: me.firstName || '',
           apellidos: me.lastName || '',
           alias: me.username || '',
@@ -70,12 +77,63 @@ export default function ProfileScreen() {
           edad: me.age ? String(me.age) : '',
           genero: me.gender || '',
           consentimiento: !!me.consentAccepted,
-        }));
+          terapeutaNombre: '',
+          terapeutaApellido: '',
+          terapeutaTelefono: '',
+          emergenciaPrincipalNombre: '',
+          emergenciaPrincipalApellido: '',
+          emergenciaPrincipalTelefono: '',
+          emergenciaSecundariaNombre: '',
+          emergenciaSecundariaApellido: '',
+          emergenciaSecundariaTelefono: ''
+        };
+
+        let contacts: any[] = [];
+        try {
+          const res = await get<{ data: any[]; message?: string }>(`/emergency-contacts/user/${me.id}`);
+          contacts = Array.isArray(res?.data) ? res.data : [];
+        } catch {}
+
+        const finalProfile: UserProfile = { ...baseUpdated };
+        if (Array.isArray(contacts)) {
+          contacts.forEach((c: any) => {
+            const typeRaw = c?.contactType || c?.type;
+            const type = String(typeRaw || '').toLowerCase();
+            const firstName = c?.firstName || '';
+            const lastName = c?.lastName || '';
+            const phoneNumber = c?.phoneNumber || c?.phone || '';
+            if (type.includes('therapist')) {
+              finalProfile.terapeutaNombre = firstName;
+              finalProfile.terapeutaApellido = lastName;
+              finalProfile.terapeutaTelefono = phoneNumber;
+            } else if (type.includes('primary')) {
+              finalProfile.emergenciaPrincipalNombre = firstName;
+              finalProfile.emergenciaPrincipalApellido = lastName;
+              finalProfile.emergenciaPrincipalTelefono = phoneNumber;
+            } else if (type.includes('secondary')) {
+              finalProfile.emergenciaSecundariaNombre = firstName;
+              finalProfile.emergenciaSecundariaApellido = lastName;
+              finalProfile.emergenciaSecundariaTelefono = phoneNumber;
+            }
+          });
+        }
+
+        setProfile(finalProfile);
+        baselineRef.current = finalProfile;
       } catch (e: any) {
         Alert.alert('Error', e?.message || 'No se pudo cargar el perfil');
       }
     })();
   }, []);
+
+  const isDirty = useMemo(() => {
+    if (!baselineRef.current) return false;
+    try {
+      return JSON.stringify(profile) !== JSON.stringify(baselineRef.current);
+    } catch {
+      return false;
+    }
+  }, [profile]);
 
   const handleSave = async () => {
     try {
@@ -106,7 +164,25 @@ export default function ProfileScreen() {
         genero: updated.gender || prev.genero,
         consentimiento: !!updated.consentAccepted,
       }));
-      Alert.alert('Éxito', 'Perfil actualizado correctamente');
+
+      const toCreate: { firstName: string; lastName?: string; phoneNumber: string; contactType: 'Therapist' | 'Primary' | 'Secondary' }[] = [];
+      const isValidContact = (fn?: string, ln?: string, ph?: string) => !!(ph && ph.trim() && fn && fn.trim());
+      if (isValidContact(profile.terapeutaNombre, profile.terapeutaApellido, profile.terapeutaTelefono)) {
+        toCreate.push({ firstName: profile.terapeutaNombre.trim(), lastName: (profile.terapeutaApellido || '').trim(), phoneNumber: profile.terapeutaTelefono.trim(), contactType: 'Therapist' });
+      }
+      if (isValidContact(profile.emergenciaPrincipalNombre, profile.emergenciaPrincipalApellido, profile.emergenciaPrincipalTelefono)) {
+        toCreate.push({ firstName: profile.emergenciaPrincipalNombre.trim(), lastName: (profile.emergenciaPrincipalApellido || '').trim(), phoneNumber: profile.emergenciaPrincipalTelefono.trim(), contactType: 'Primary' });
+      }
+      if (isValidContact(profile.emergenciaSecundariaNombre, profile.emergenciaSecundariaApellido, profile.emergenciaSecundariaTelefono)) {
+        toCreate.push({ firstName: profile.emergenciaSecundariaNombre.trim(), lastName: (profile.emergenciaSecundariaApellido || '').trim(), phoneNumber: profile.emergenciaSecundariaTelefono.trim(), contactType: 'Secondary' });
+      }
+
+      if (toCreate.length > 0) {
+        await Promise.all(
+          toCreate.map(c => post('/emergency-contacts', { userId, ...c }))
+        );
+      }
+      Alert.alert('Éxito', 'Perfil y contactos actualizados correctamente');
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'No se pudo actualizar el perfil');
     }
@@ -246,12 +322,21 @@ export default function ProfileScreen() {
             
             <View className="space-y-4">
               <View>
-                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre</Text>
                 <TextInput
                   value={profile.terapeutaNombre}
                   onChangeText={(text) => updateProfile('terapeutaNombre', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="Nombre del terapeuta"
+                  placeholder="Nombre"
+                />
+              </View>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Apellido</Text>
+                <TextInput
+                  value={profile.terapeutaApellido}
+                  onChangeText={(text) => updateProfile('terapeutaApellido', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Apellido"
                 />
               </View>
 
@@ -261,7 +346,7 @@ export default function ProfileScreen() {
                   value={profile.terapeutaTelefono}
                   onChangeText={(text) => updateProfile('terapeutaTelefono', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="+1 234 567 8900"
+                  placeholder="999 666 999"
                   keyboardType="phone-pad"
                 />
               </View>
@@ -276,12 +361,21 @@ export default function ProfileScreen() {
             
             <View className="space-y-4">
               <View>
-                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre</Text>
                 <TextInput
                   value={profile.emergenciaPrincipalNombre}
                   onChangeText={(text) => updateProfile('emergenciaPrincipalNombre', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="Nombre del contacto principal"
+                  placeholder="Nombre"
+                />
+              </View>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Apellido</Text>
+                <TextInput
+                  value={profile.emergenciaPrincipalApellido}
+                  onChangeText={(text) => updateProfile('emergenciaPrincipalApellido', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Apellido"
                 />
               </View>
 
@@ -291,7 +385,7 @@ export default function ProfileScreen() {
                   value={profile.emergenciaPrincipalTelefono}
                   onChangeText={(text) => updateProfile('emergenciaPrincipalTelefono', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="+1 234 567 8900"
+                  placeholder="993 992 991"
                   keyboardType="phone-pad"
                 />
               </View>
@@ -306,12 +400,21 @@ export default function ProfileScreen() {
             
             <View className="space-y-4">
               <View>
-                <Text className="text-indigo-700 font-medium mb-2">Nombre completo</Text>
+                <Text className="text-indigo-700 font-medium mb-2">Nombre</Text>
                 <TextInput
                   value={profile.emergenciaSecundariaNombre}
                   onChangeText={(text) => updateProfile('emergenciaSecundariaNombre', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="Nombre del contacto secundario"
+                  placeholder="Nombre"
+                />
+              </View>
+              <View>
+                <Text className="text-indigo-700 font-medium mb-2">Apellido</Text>
+                <TextInput
+                  value={profile.emergenciaSecundariaApellido}
+                  onChangeText={(text) => updateProfile('emergenciaSecundariaApellido', text)}
+                  className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
+                  placeholder="Apellido"
                 />
               </View>
 
@@ -321,7 +424,7 @@ export default function ProfileScreen() {
                   value={profile.emergenciaSecundariaTelefono}
                   onChangeText={(text) => updateProfile('emergenciaSecundariaTelefono', text)}
                   className="border border-indigo-100 rounded-xl px-4 py-3 text-indigo-700 bg-white shadow-sm"
-                  placeholder="+1 234 567 8900"
+                  placeholder="993 992 991"
                   keyboardType="phone-pad"
                 />
               </View>
@@ -329,7 +432,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Guardar Cambios */}
-          <TouchableOpacity className="bg-indigo-400 rounded-2xl px-6 py-4 shadow-sm" onPress={handleSave}>
+          <TouchableOpacity className={`rounded-2xl px-6 py-4 shadow-sm ${isDirty ? 'bg-indigo-400 active:bg-indigo-500' : 'bg-indigo-300'}`} onPress={handleSave} disabled={!isDirty}>
             <View className="flex-row items-center justify-center">
               <Text className="text-lg mr-3">💾</Text>
               <Text className="text-white font-semibold text-lg">Guardar cambios</Text>

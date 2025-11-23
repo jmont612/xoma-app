@@ -14,8 +14,12 @@ export default function Index() {
         try {
           await getMe();
           router.replace('/(tabs)');
-        } catch {
-          router.replace('/login');
+        } catch (err: any) {
+          if (err?.status === 401) {
+            router.replace('/login');
+          } else {
+            router.replace('/(tabs)');
+          }
         }
       } else {
         router.replace('/login');

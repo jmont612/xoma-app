@@ -1,6 +1,9 @@
-import { Link } from 'expo-router';
-import React, { useState } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { get } from '../lib/api';
+import { fromYYYYMMDDLocal, isSameLocalDay, toLocalYYYYMMDD, toDateFromUnknown } from '../lib/date';
+import { loadUser } from '../lib/storage';
 
 interface DiaryEntry {
   id: string;
@@ -17,46 +20,82 @@ export default function DiaryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+  const [minSelectableDate, setMinSelectableDate] = useState(new Date());
 
-  // Datos de ejemplo
-  const diaryEntries: DiaryEntry[] = [
-    {
-      id: '1',
-      date: '2025-08-15',
-      time: '14:30',
-      practiceSkills: ['Respiración profunda', 'Mindfulness'],
-      interventions: 2,
-      riskBehaviors: false,
-      riskLevel: 'low'
-    },
-    {
-      id: '2',
-      date: '2025-08-14',
-      time: '09:15',
-      practiceSkills: ['Técnica de relajación'],
-      interventions: 1,
-      riskBehaviors: true,
-      riskLevel: 'moderate'
-    },
-    {
-      id: '3',
-      date: '2025-08-13',
-      time: '16:45',
-      practiceSkills: ['Meditación', 'Ejercicio de gratitud', 'Respiración'],
-      interventions: 3,
-      riskBehaviors: true,
-      riskLevel: 'high'
-    },
-    {
-      id: '4',
-      date: '2025-08-12',
-      time: '11:20',
-      practiceSkills: ['Mindfulness'],
-      interventions: 0,
-      riskBehaviors: false,
-      riskLevel: 'low'
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+
+  const computeRiskLevel = (entry: any): 'low' | 'moderate' | 'high' => {
+    if (entry?.riskLevel === 'low' || entry?.riskLevel === 'moderate' || entry?.riskLevel === 'high') {
+      return entry.riskLevel as 'low' | 'moderate' | 'high';
     }
-  ];
+    const behaviors = entry?.behaviors || [];
+    const mapById = (id: number) => behaviors.find((b: any) => b.behaviorId === id)?.hasHappened === true;
+    const intentoSuicidio = mapById(4);
+    const ideacionSuicida = mapById(3);
+    const autolesion = mapById(2);
+    const impulsiva = mapById(8);
+    const sustancias = mapById(6) || mapById(5);
+    if (intentoSuicidio || ideacionSuicida) return 'high';
+    if (autolesion || impulsiva || sustancias) return 'moderate';
+    return 'low';
+  };
+
+  const loadEntries = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const user = await loadUser<any>();
+      const userId = (user?.id ?? user?.userId ?? 1) as number;
+      const res = await get<{ data: any[] }>(`/diaries/user/${userId}`);
+      const list = Array.isArray(res.data) ? res.data : (res as any)?.data || [];
+      const mapped: DiaryEntry[] = list.map((d: any, idx: number) => {
+        const dateStr: string = d.entryDate || d.createdAt || new Date().toISOString();
+        const dt = new Date(dateStr);
+        const practiceSkills: string[] = Array.isArray(d.skillActivities)
+          ? d.skillActivities.map((sa: any) => sa?.subSkill?.name || 'Habilidad')
+          : [];
+        const interventions: number = Array.isArray(d.skillActivities) ? d.skillActivities.length : 0;
+        const riskBehaviors: boolean = Array.isArray(d.behaviors) && d.behaviors.some((b: any) => b.hasHappened === true);
+        const riskLevel = computeRiskLevel(d);
+        return {
+          id: String(d.id ?? idx + 1),
+          date: toLocalYYYYMMDD(dt),
+          time: dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          practiceSkills,
+          interventions,
+          riskBehaviors,
+          riskLevel,
+        };
+      });
+      setDiaryEntries(mapped);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || 'No se pudo cargar los diarios');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadEntries(); }, [loadEntries]);
+  useFocusEffect(useCallback(() => { loadEntries(); }, [loadEntries]));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await loadUser<any>();
+        const raw = me?.createdAt ?? me?.created_at ?? me?.registrationDate ?? me?.registeredAt;
+        const reg = raw ? toDateFromUnknown(raw) : new Date();
+        const mid = new Date(reg);
+        mid.setHours(0, 0, 0, 0);
+        setMinSelectableDate(mid);
+      } catch {
+        const mid = new Date();
+        mid.setHours(0, 0, 0, 0);
+        setMinSelectableDate(mid);
+      }
+    })();
+  }, []);
 
   const getRiskColor = (level: string) => {
     switch (level) {
@@ -82,7 +121,7 @@ export default function DiaryScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = fromYYYYMMDDLocal(dateString);
     return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -92,33 +131,55 @@ export default function DiaryScreen() {
   };
 
   const isDateInRange = (entryDate: string, filter: string) => {
-    const entry = new Date(entryDate);
+    const entry = fromYYYYMMDDLocal(entryDate);
     const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    
     switch (filter) {
-      case 'today':
-        return entry.toDateString() === today.toDateString();
-      case 'week':
-        const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
-        return entry.getTime() >= weekAgo.getTime() && entry.getTime() <= today.getTime();
-      case 'month':
-        const monthAgo = new Date(today);
-        monthAgo.setMonth(today.getMonth() - 1);
-        return entry.getTime() >= monthAgo.getTime() && entry.getTime() <= today.getTime();
-      case 'custom':
-        if (customDateRange.start && customDateRange.end) {
-          return entry.getTime() >= customDateRange.start!.getTime() && entry.getTime() <= customDateRange.end!.getTime();
+      case 'week': {
+        const dow = today.getDay();
+        const mondayOffset = (dow + 6) % 7;
+        const start = new Date(today);
+        start.setHours(0, 0, 0, 0);
+        start.setDate(today.getDate() - mondayOffset);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return entry.getTime() >= start.getTime() && entry.getTime() <= end.getTime();
+      }
+      case 'month': {
+        return entry.getMonth() === today.getMonth() && entry.getFullYear() === today.getFullYear();
+      }
+      case 'custom': {
+        if (customDateRange.start) {
+          return isSameLocalDay(entry, customDateRange.start);
         }
         return true;
+      }
+      case 'all':
       default:
         return true;
     }
   };
 
-  const filteredEntries = diaryEntries.filter(entry => isDateInRange(entry.date, selectedFilter));
+  const filteredEntries = useMemo(
+    () => diaryEntries
+      .filter(entry => isDateInRange(entry.date, selectedFilter))
+      .sort((a, b) => {
+        const ta = new Date(`${a.date}T${a.time}`).getTime();
+        const tb = new Date(`${b.date}T${b.time}`).getTime();
+        return tb - ta;
+      }),
+    [diaryEntries, selectedFilter, customDateRange.start, customDateRange.end]
+  );
+
+  const hasSelectedDateEntry = useMemo(() => {
+    return diaryEntries.some((e) => isSameLocalDay(e.date, selectedDate));
+  }, [diaryEntries, selectedDate]);
+
+  useEffect(() => {
+    if (customDateRange.start && selectedFilter !== 'custom') {
+      setSelectedFilter('custom');
+    }
+  }, [customDateRange.start]);
 
   const generateCalendarDays = (): (number | null)[] => {
     const year = selectedDate.getFullYear();
@@ -146,6 +207,13 @@ export default function DiaryScreen() {
   const selectDate = (day: number | null) => {
     if (day) {
       const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+      const today = new Date();
+      const minDay = new Date(minSelectableDate);
+      minDay.setHours(0, 0, 0, 0);
+      const dMid = new Date(newDate);
+      dMid.setHours(0, 0, 0, 0);
+      if (dMid < minDay) return;
+      if (newDate > today) return;
       setSelectedDate(newDate);
       setCustomDateRange({ start: newDate, end: newDate });
       setSelectedFilter('custom');
@@ -233,9 +301,46 @@ export default function DiaryScreen() {
           <Text className="text-lg font-semibold text-indigo-700 mb-4">
             Registros diarios
           </Text>
-          
+          {isLoading && (
+            <View className="items-center justify-center py-8">
+              <Text className="text-indigo-600">Cargando diarios…</Text>
+            </View>
+          )}
+          {error && !isLoading && (
+            <View className="items-center justify-center py-8">
+              <Text className="text-red-600">{error}</Text>
+            </View>
+          )}
+
+          {!hasSelectedDateEntry && (
+            <Link href="/diary-form" asChild>
+              <TouchableOpacity 
+                 className="bg-white/100 rounded-2xl p-8 shadow-sm items-center border border-indigo-100 mb-5"
+               >
+                <View className="w-20 h-20 bg-white rounded-full items-center justify-center mb-4 border border-indigo-100 shadow-sm">
+                  <Image 
+                    source={require('../../assets/images/diary.png')}
+                    resizeMode="contain"
+                    style={{ width: 40, height: 40 }}
+                  />
+                </View>
+                <Text className="text-xl font-semibold text-indigo-700 mb-2">
+                  Sin registros
+                </Text>
+                <Text className="text-indigo-600 text-center mb-4">
+                  El día {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} no has llenado tu diario.
+                </Text>
+                <View className="bg-indigo-400 px-6 py-3 rounded-full shadow-sm">
+                  <Text className="text-white font-semibold">
+                    Crear registro
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Link>
+          )}
+
           {filteredEntries.map((entry) => (
-            <View key={entry.id} className="bg-white/100 rounded-2xl overflow-hidden mb-5 shadow-sm border border-indigo-100">
+            <TouchableOpacity key={entry.id} onPress={() => router.push(`/diary-form?diaryId=${entry.id}`)} className="bg-white/100 rounded-2xl overflow-hidden mb-5 shadow-sm border border-indigo-100">
               {/* Barra superior de nivel de riesgo (completa) */}
               <View className={`flex-row items-center justify-between px-4 py-3 ${getRiskBarClass(entry.riskLevel)} rounded-t-2xl`}>
                 <Text className="text-white text-sm font-semibold">{getRiskText(entry.riskLevel)}</Text>
@@ -270,40 +375,13 @@ export default function DiaryScreen() {
                   </View>
                 </View>
 
-                {/* Intervenciones y conductas de riesgo */}
-                <View className="flex-row justify-between">
-                  <View className="flex-1 items-center">
-                    <Image 
-                      source={require('../../assets/images/icons/bell-icon.png')}
-                      resizeMode="contain"
-                      style={{ width: 28, height: 28 }}
-                    />
-                    <Text className="text-sm font-medium text-indigo-700 mt-2">Intervenciones:</Text>
-                    <Text className="text-2xl font-bold text-indigo-600 mt-1">
-                      {entry.interventions}
-                    </Text>
-                  </View>
-                  
-                  <View className="flex-1 items-center">
-                    <Image 
-                      source={require('../../assets/images/icons/danger-icon.png')}
-                      resizeMode="contain"
-                      style={{ width: 28, height: 28 }}
-                    />
-                    <Text className="text-sm font-medium text-indigo-700 mt-2">Conductas de riesgo:</Text>
-                    <Text className={`text-2xl font-bold mt-1 ${
-                      entry.riskBehaviors ? 'text-red-600' : 'text-indigo-600'
-                    }`}>
-                      {entry.riskBehaviors ? 'Sí' : 'No'}
-                    </Text>
-                  </View>
-                </View>
+                
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
 
           {/* Mensaje cuando no hay entradas */}
-          {filteredEntries.length === 0 && (
+          {filteredEntries.length === 0 && hasSelectedDateEntry && (
             <Link href="/diary-form" asChild>
               <TouchableOpacity 
                  className="bg-white/100 rounded-2xl p-8 shadow-sm items-center border border-indigo-100"
@@ -319,8 +397,7 @@ export default function DiaryScreen() {
                   Sin registros
                 </Text>
                 <Text className="text-indigo-600 text-center mb-4">
-                  Aún no tienes registros en tu diario. 
-                  Completa evaluaciones para ver tus entradas aquí.
+                  El día {selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })} no has llenado tu diario.
                 </Text>
                 <View className="bg-indigo-400 px-6 py-3 rounded-full shadow-sm">
                   <Text className="text-white font-semibold">
@@ -346,9 +423,12 @@ export default function DiaryScreen() {
             <View className="flex-row justify-between items-center mb-4">
               <TouchableOpacity
                 onPress={() => {
-                  const newDate = new Date(selectedDate);
-                  newDate.setMonth(newDate.getMonth() - 1);
-                  setSelectedDate(newDate);
+                  const candidate = new Date(selectedDate);
+                  candidate.setMonth(candidate.getMonth() - 1);
+                  const minMonth = new Date(minSelectableDate);
+                  const isBeforeMinMonth = candidate.getFullYear() < minMonth.getFullYear() || (candidate.getFullYear() === minMonth.getFullYear() && candidate.getMonth() < minMonth.getMonth());
+                  if (isBeforeMinMonth) return;
+                  setSelectedDate(candidate);
                 }}
                 className="p-2"
               >
@@ -361,9 +441,12 @@ export default function DiaryScreen() {
               
               <TouchableOpacity
                 onPress={() => {
-                  const newDate = new Date(selectedDate);
-                  newDate.setMonth(newDate.getMonth() + 1);
-                  setSelectedDate(newDate);
+                  const today = new Date();
+                  const candidate = new Date(selectedDate);
+                  candidate.setMonth(candidate.getMonth() + 1);
+                  const isFutureMonth = candidate.getFullYear() > today.getFullYear() || (candidate.getFullYear() === today.getFullYear() && candidate.getMonth() > today.getMonth());
+                  if (isFutureMonth) return;
+                  setSelectedDate(candidate);
                 }}
                 className="p-2"
               >
@@ -382,32 +465,42 @@ export default function DiaryScreen() {
 
             {/* Días del calendario */}
             <View className="flex-row flex-wrap">
-              {generateCalendarDays().map((day, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => selectDate(day)}
-                  className="w-1/7 aspect-square items-center justify-center"
-                  style={{ width: '14.28%' }}
-                >
-                  <View className={`w-8 h-8 rounded-full items-center justify-center ${
-                    day && customDateRange.start && 
-                    day === customDateRange.start.getDate() && 
-                    selectedDate.getMonth() === customDateRange.start.getMonth()
-                      ? 'bg-indigo-400'
-                      : ''
-                  }`}>
-                    <Text className={`${
+              {generateCalendarDays().map((day, index) => {
+                const today = new Date();
+                const candidate = !!day ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day) : null;
+                const minDay = new Date(minSelectableDate);
+                minDay.setHours(0, 0, 0, 0);
+                const candMid = candidate ? new Date(candidate) : null;
+                if (candMid) candMid.setHours(0, 0, 0, 0);
+                const isFuture = !!candMid && (candMid > today);
+                const isBeforeReg = !!candMid && (candMid < minDay);
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => (!isFuture && !isBeforeReg ? selectDate(day) : null)}
+                    className="w-1/7 aspect-square items-center justify-center"
+                    style={{ width: '14.28%' }}
+                  >
+                    <View className={`w-8 h-8 rounded-full items-center justify-center ${
                       day && customDateRange.start && 
                       day === customDateRange.start.getDate() && 
                       selectedDate.getMonth() === customDateRange.start.getMonth()
-                        ? 'text-white font-bold'
-                        : day ? 'text-indigo-700' : 'text-transparent'
+                        ? 'bg-indigo-400'
+                        : ''
                     }`}>
-                      {day || ''}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                      <Text className={`${
+                        day && customDateRange.start && 
+                        day === customDateRange.start.getDate() && 
+                        selectedDate.getMonth() === customDateRange.start.getMonth()
+                          ? 'text-white font-bold'
+                          : day ? ((isFuture || isBeforeReg) ? 'text-indigo-300' : 'text-indigo-700') : 'text-transparent'
+                      }`}>
+                        {day || ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Botones del modal */}
