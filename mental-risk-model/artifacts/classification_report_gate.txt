@@ -1,0 +1,14 @@
+Gate thr: 0.58
+Validator thr: 0.76
+Accuracy: 0.8869
+Macro-F1: 0.7471
+
+              precision    recall  f1-score   support
+
+        ALTO       0.42      0.47      0.44        96
+        BAJO       0.99      0.98      0.98       653
+       MEDIO       0.83      0.80      0.81       259
+
+    accuracy                           0.89      1008
+   macro avg       0.74      0.75      0.75      1008
+weighted avg       0.89      0.89      0.89      1008

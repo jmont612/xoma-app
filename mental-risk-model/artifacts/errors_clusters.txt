@@ -1,0 +1,3 @@
+Cluster 0: 45 casos
+Cluster 1: 5 casos
+Cluster 2: 4 casos

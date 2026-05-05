@@ -1,0 +1,18 @@
+Top diferencias absolutas de medias (numéricas):
+- dist_to_ALTO__sq_focus: Δ=12187198042922.8984
+- dist_to_MEDIO__sq_focus: Δ=10798149577035.5078
+- stress_0_10__div__mood_0_10__sq_focus: Δ=3321249821241.7734
+- impulsivity_0_10__div__mood_0_10__sq_focus: Δ=2803017303016.0098
+- anxiety_0_10__div__mood_0_10__sq_focus: Δ=828971828972.2578
+- stress_0_10__div__impulsivity_0_10__sq_focus: Δ=810810810811.6395
+- anxiety_0_10__div__impulsivity_0_10__sq_focus: Δ=424710424711.2779
+- medio_minus_alto_dist__sq_focus: Δ=90387463105.0095
+- dist_to_ALTO: Δ=1015264.0848
+- dist_to_MEDIO: Δ=834440.5793
+- impulsivity_0_10__div__mood_0_10: Δ=420920.6442
+- stress_0_10__div__mood_0_10: Δ=395465.9054
+
+Sugerencias de features adicionales:
+- Umbrales/flags para columnas con mayor Δ en MEDIO→ALTO.
+- Ratios normalizados usando columnas top por Δ.
+- Interacciones cuadráticas enfocadas en variables con Δ elevado.

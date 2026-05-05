@@ -1,0 +1,12 @@
+Accuracy: 0.8810
+Macro-F1: 0.7375
+
+              precision    recall  f1-score   support
+
+        ALTO       0.39      0.46      0.42        96
+        BAJO       0.99      0.98      0.98       653
+       MEDIO       0.82      0.79      0.81       259
+
+    accuracy                           0.88      1008
+   macro avg       0.73      0.74      0.74      1008
+weighted avg       0.89      0.88      0.88      1008

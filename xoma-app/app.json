@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "xoma-app",
+    "slug": "xoma-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    
+    
+    "scheme": "xomaapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.xoma.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/old/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "apiUrlDev": "http://192.168.18.45:3000",
+      "apiUrlProd": "https://api.midominio.com",
+      "forceLocalhostApi": false,
+      "router": {},
+      "eas": {
+        "projectId": "8812f0dc-42f6-4fee-8787-b000279fd4e1"
+      }
+    }
+  }
+}
