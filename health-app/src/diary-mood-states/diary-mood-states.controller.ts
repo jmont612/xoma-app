@@ -12,8 +12,8 @@ import {
 import { DiaryMoodStatesService } from './diary-mood-states.service';
 import { CreateDiaryMoodStateDto } from './dto/create-diary-mood-state.dto';
 import { UpdateDiaryMoodStateDto } from './dto/update-diary-mood-state.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('diary-mood-states')
 @UseGuards(JwtAuthGuard)

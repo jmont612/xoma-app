@@ -4,8 +4,8 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Step } from './entities/step.entity';
 import { CreateStepDto } from './dto/create-step.dto';
 import { UpdateStepDto } from './dto/update-step.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { SubSkillsService } from 'src/sub-skills/sub-skills.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { SubSkillsService } from '@/sub-skills/sub-skills.service';
 
 @Injectable()
 export class StepsService {

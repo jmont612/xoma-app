@@ -1,5 +1,5 @@
 import { IsEnum, IsString, Length } from 'class-validator';
-import { EmaTypeEvaluationType } from 'src/common/enums/ema-type-evaluation-type.enum';
+import { EmaTypeEvaluationType } from '@/common/enums/ema-type-evaluation-type.enum';
 
 export class CreateEmaTypeDto {
   @IsString()

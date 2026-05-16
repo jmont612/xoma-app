@@ -1,5 +1,5 @@
 import { Expose } from 'class-transformer';
-import { Gender } from 'src/common/enums/gender.enum';
+import { Gender } from '@/common/enums/gender.enum';
 
 export class ResponseUserDto {
   @Expose()

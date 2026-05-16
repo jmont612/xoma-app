@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { DiaryBehaviorsService } from './diary-behaviors.service';
 import { CreateDiaryBehaviorDto } from './dto/create-diary-behavior.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('diary-behaviors')
 @UseGuards(JwtAuthGuard)

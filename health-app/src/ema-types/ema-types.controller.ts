@@ -12,8 +12,8 @@ import {
 import { EmaTypesService } from './ema-types.service';
 import { CreateEmaTypeDto } from './dto/create-ema-type.dto';
 import { UpdateEmaTypeDto } from './dto/update-ema-type.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('ema-types')
 @UseGuards(JwtAuthGuard)

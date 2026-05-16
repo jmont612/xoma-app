@@ -6,20 +6,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { CreateUserDto } from '@/users/dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Auth } from './entities/auth.entity';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
+import { User } from '@/users/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { IRequest } from 'src/common/interfaces/request.interface';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { assertValidExpires } from 'src/common/utils/assertValidExpires';
-import { EmailService } from 'src/email/email.service';
+import { IRequest } from '@/common/interfaces/request.interface';
+import { withTransaction } from '../common/helpers/transaction.helper';
+import { assertValidExpires } from '@/common/utils/assertValidExpires';
+import { EmailService } from '@/email/email.service';
 import { render } from '@react-email/render';
-import ResetPasswordEmailTemplate from 'src/email/templates/resetPassword';
+import ResetPasswordEmailTemplate from '@/email/templates/resetPassword';
 
 @Injectable()
 export class AuthService {
@@ -215,8 +215,8 @@ export class AuthService {
       await this.emailService.sendMail(emailPayload);
 
       return 'Password reset email sent successfully';
-    } catch (error) {
-      throw new BadRequestException(error.message);
+    } catch (_error) {
+      throw new BadRequestException('Failed to send password reset email');
     }
   }
 
@@ -242,15 +242,8 @@ export class AuthService {
         );
 
         return 'Password updated correctly';
-      } catch (error) {
-        if (
-          error.name === 'TokenExpiredError' ||
-          error.name === 'JsonWebTokenError'
-        ) {
-          throw new ForbiddenException('Invalid or expired token');
-        }
-
-        throw new BadRequestException(error.message);
+      } catch (_error) {
+        throw new BadRequestException('Failed to reset password');
       }
     });
   }

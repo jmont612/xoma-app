@@ -4,8 +4,8 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Reflection } from './entities/reflection.entity';
 import { CreateReflectionDto } from './dto/create-reflection.dto';
 import { UpdateReflectionDto } from './dto/update-reflection.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { Diary } from 'src/diaries/entities/diary.entity';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { Diary } from '@/diaries/entities/diary.entity';
 
 @Injectable()
 export class ReflectionsService {

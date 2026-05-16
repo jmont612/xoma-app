@@ -4,12 +4,12 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Diary } from './entities/diary.entity';
 import { CreateDiaryDto } from './dto/create-diary.dto';
 import { UpdateDiaryDto } from './dto/update-diary.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { DiaryMoodStatesService } from 'src/diary-mood-states/diary-mood-states.service';
-import { DiaryBehaviorsService } from 'src/diary-behaviors/diary-behaviors.service';
-import { UserSkillActivitiesService } from 'src/user-skill-activities/user-skill-activities.service';
-import { ReflectionsService } from 'src/reflections/reflections.service';
-import { UsersService } from 'src/users/users.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { DiaryMoodStatesService } from '@/diary-mood-states/diary-mood-states.service';
+import { DiaryBehaviorsService } from '@/diary-behaviors/diary-behaviors.service';
+import { UserSkillActivitiesService } from '@/user-skill-activities/user-skill-activities.service';
+import { ReflectionsService } from '@/reflections/reflections.service';
+import { UsersService } from '@/users/users.service';
 
 @Injectable()
 export class DiariesService {

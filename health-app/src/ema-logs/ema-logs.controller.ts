@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { EmaLogsService } from './ema-logs.service';
 import { UpdateEmaLogDto } from './dto/update-ema-log.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 import { CreateEmaLogsArrayDto } from './dto/create-ema-logs-array.dto';
 
 @Controller('ema-logs')

@@ -12,8 +12,8 @@ import {
 import { DailyQuotesService } from './daily-quotes.service';
 import { CreateDailyQuoteDto } from './dto/create-daily-quote.dto';
 import { UpdateDailyQuoteDto } from './dto/update-daily-quote.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('daily-quotes')
 @UseGuards(JwtAuthGuard)

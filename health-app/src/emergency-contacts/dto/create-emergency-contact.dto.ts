@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsInt, Length } from 'class-validator';
-import { ContactType } from 'src/common/enums/contact-type.enum';
+import { ContactType } from '@/common/enums/contact-type.enum';
 
 export class CreateEmergencyContactDto {
   @IsInt()

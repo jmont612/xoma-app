@@ -8,7 +8,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Gender } from 'src/common/enums/gender.enum';
+import { Gender } from '@/common/enums/gender.enum';
 
 export class CreateUserDto {
   @IsString()

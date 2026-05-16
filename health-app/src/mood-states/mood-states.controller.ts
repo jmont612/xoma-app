@@ -12,8 +12,8 @@ import {
 import { MoodStatesService } from './mood-states.service';
 import { CreateMoodStateDto } from './dto/create-mood-state.dto';
 import { UpdateMoodStateDto } from './dto/update-mood-state.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('mood-states')
 @UseGuards(JwtAuthGuard)

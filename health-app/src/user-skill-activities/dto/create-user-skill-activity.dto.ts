@@ -6,7 +6,7 @@ import {
   Max,
   IsEnum,
 } from 'class-validator';
-import { UserSkillActivityStatus } from 'src/common/enums/diary-skill-activity-status.enum';
+import { UserSkillActivityStatus } from '@/common/enums/diary-skill-activity-status.enum';
 
 export class CreateUserSkillActivityDto {
   @IsInt()

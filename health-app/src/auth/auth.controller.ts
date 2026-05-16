@@ -13,10 +13,10 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LocalAuthGuard } from './guards/local.guard';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { apiResponse } from 'src/common/helpers/response.helper';
-import type { IRequest } from 'src/common/interfaces/request.interface';
+import { apiResponse } from '@/common/helpers/response.helper';
+import type { IRequest } from '@/common/interfaces/request.interface';
 import { plainToInstance } from 'class-transformer';
-import { ResponseUserDto } from 'src/users/dto/response-user.dto';
+import { ResponseUserDto } from '@/users/dto/response-user.dto';
 
 @Controller('auth')
 export class AuthController {

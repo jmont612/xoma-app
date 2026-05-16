@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UsersModule } from 'src/users/users.module';
+import { UsersModule } from '@/users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Auth } from './entities/auth.entity';
 import { PassportModule } from '@nestjs/passport';
@@ -11,9 +11,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt.guard';
-import { AuthRegisterHelper } from 'src/common/helpers/auth-register-helper';
-import { assertValidExpires } from 'src/common/utils/assertValidExpires';
-import { EmailModule } from 'src/email/email.module';
+import { AuthRegisterHelper } from '@/common/helpers/auth-register-helper';
+import { assertValidExpires } from '@/common/utils/assertValidExpires';
+import { EmailModule } from '@/email/email.module';
 
 @Module({
   imports: [

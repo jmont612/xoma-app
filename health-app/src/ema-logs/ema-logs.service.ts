@@ -7,16 +7,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { EmaLog } from './entities/ema-log.entity';
 import { UpdateEmaLogDto } from './dto/update-ema-log.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { MlPredictionService } from 'src/ml-prediction/ml-prediction.service';
-import { MlPredictionDto } from 'src/ml-prediction/dto/ml-prediction.dto';
-import { SubSkill } from 'src/sub-skills/entities/sub-skill.entity';
-import { UserSkillActivity } from 'src/user-skill-activities/entities/user-skill-activity.entity';
-import { EmergencyContact } from 'src/emergency-contacts/entities/emergency-contact.entity';
-import { UsersService } from 'src/users/users.service';
-import { EmaTypesService } from 'src/ema-types/ema-types.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { MlPredictionService } from '@/ml-prediction/ml-prediction.service';
+import { MlPredictionDto } from '@/ml-prediction/dto/ml-prediction.dto';
+import { SubSkill } from '@/sub-skills/entities/sub-skill.entity';
+import { UserSkillActivity } from '@/user-skill-activities/entities/user-skill-activity.entity';
+import { EmergencyContact } from '@/emergency-contacts/entities/emergency-contact.entity';
+import { UsersService } from '@/users/users.service';
+import { EmaTypesService } from '@/ema-types/ema-types.service';
 import { CreateEmaLogsArrayDto } from './dto/create-ema-logs-array.dto';
-import { EmaTypeEvaluationType } from 'src/common/enums/ema-type-evaluation-type.enum';
+import { EmaTypeEvaluationType } from '@/common/enums/ema-type-evaluation-type.enum';
 
 @Injectable()
 export class EmaLogsService {

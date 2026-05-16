@@ -4,8 +4,8 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { EmergencyContact } from './entities/emergency-contact.entity';
 import { CreateEmergencyContactDto } from './dto/create-emergency-contact.dto';
 import { UpdateEmergencyContactDto } from './dto/update-emergency-contact.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { UsersService } from 'src/users/users.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { UsersService } from '@/users/users.service';
 
 @Injectable()
 export class EmergencyContactsService {

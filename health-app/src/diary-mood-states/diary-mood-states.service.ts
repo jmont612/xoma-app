@@ -4,9 +4,9 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { DiaryMoodState } from './entities/diary-mood-state.entity';
 import { CreateDiaryMoodStateDto } from './dto/create-diary-mood-state.dto';
 import { UpdateDiaryMoodStateDto } from './dto/update-diary-mood-state.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { Diary } from 'src/diaries/entities/diary.entity';
-import { MoodState } from 'src/mood-states/entities/mood-state.entity';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { Diary } from '@/diaries/entities/diary.entity';
+import { MoodState } from '@/mood-states/entities/mood-state.entity';
 
 @Injectable()
 export class DiaryMoodStatesService {

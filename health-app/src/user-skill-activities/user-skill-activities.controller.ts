@@ -13,8 +13,8 @@ import {
 import { UserSkillActivitiesService } from './user-skill-activities.service';
 import { CreateUserSkillActivityDto } from './dto/create-user-skill-activity.dto';
 import { UpdateSkillActivityDto } from './dto/update-user-skill-activity.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('user-skill-activities')
 @UseGuards(JwtAuthGuard)

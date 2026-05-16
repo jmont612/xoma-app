@@ -3,7 +3,7 @@ import { EmergencyContactsService } from './emergency-contacts.service';
 import { EmergencyContactsController } from './emergency-contacts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmergencyContact } from './entities/emergency-contact.entity';
-import { UsersModule } from 'src/users/users.module';
+import { UsersModule } from '@/users/users.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([EmergencyContact]), UsersModule],

@@ -4,9 +4,9 @@ import { Repository, DataSource, EntityManager, Between } from 'typeorm';
 import { UserSkillActivity } from './entities/user-skill-activity.entity';
 import { CreateUserSkillActivityDto } from './dto/create-user-skill-activity.dto';
 import { UpdateSkillActivityDto } from './dto/update-user-skill-activity.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { User } from 'src/users/entities/user.entity';
-import { SubSkill } from 'src/sub-skills/entities/sub-skill.entity';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { User } from '@/users/entities/user.entity';
+import { SubSkill } from '@/sub-skills/entities/sub-skill.entity';
 
 @Injectable()
 export class UserSkillActivitiesService {

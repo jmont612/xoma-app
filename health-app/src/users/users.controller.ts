@@ -14,8 +14,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResponseUserDto } from './dto/response-user.dto';
 import { plainToInstance } from 'class-transformer';
-import { apiResponse } from 'src/common/helpers/response.helper';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 
 @Controller('users')
 export class UsersController {

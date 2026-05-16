@@ -8,7 +8,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { MoodState } from './entities/mood-state.entity';
 import { CreateMoodStateDto } from './dto/create-mood-state.dto';
 import { UpdateMoodStateDto } from './dto/update-mood-state.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 
 @Injectable()
 export class MoodStatesService {

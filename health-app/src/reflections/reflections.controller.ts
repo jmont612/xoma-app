@@ -12,8 +12,8 @@ import {
 import { ReflectionsService } from './reflections.service';
 import { CreateReflectionDto } from './dto/create-reflection.dto';
 import { UpdateReflectionDto } from './dto/update-reflection.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
 @Controller('reflections')
 @UseGuards(JwtAuthGuard)

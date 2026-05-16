@@ -8,7 +8,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { EmaType } from './entities/ema-type.entity';
 import { CreateEmaTypeDto } from './dto/create-ema-type.dto';
 import { UpdateEmaTypeDto } from './dto/update-ema-type.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 
 @Injectable()
 export class EmaTypesService {
