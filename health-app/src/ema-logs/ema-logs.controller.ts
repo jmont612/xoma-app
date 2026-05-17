@@ -77,7 +77,7 @@ export class EmaLogsController {
 
   @ApiOperation({
     summary:
-      'Obtener resumen diario: última EMA + últimas 4 habilidades de hoy',
+      'Obtener resumen diario: última EMA de la fecha dada (por default hoy) + últimas 4 habilidades de la fecha dada (por default hoy) de un usuario',
   })
   @ApiResponse({
     status: 200,
