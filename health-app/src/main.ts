@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
+import { runSeed } from './seeds/seed';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -39,7 +41,19 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
+  if (process.env.RUN_MIGRATIONS === 'true') {
+    const dataSource = app.get(DataSource);
+    await dataSource.runMigrations();
+    Logger.log('Migrations completed');
+  }
+
+  if (process.env.RUN_SEED === 'true') {
+    await runSeed();
+    Logger.log('Seed completed');
+  }
+
   await app.listen(process.env.PORT ?? 3000);
+
   Logger.log(
     `Swagger disponible en http://localhost:${process.env.PORT ?? 3000}/api/docs`,
   );
