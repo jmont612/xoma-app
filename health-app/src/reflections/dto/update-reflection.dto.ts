@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType } from '@nestjs/swagger';
 import { CreateReflectionDto } from './create-reflection.dto';
 
 export class UpdateReflectionDto extends PartialType(CreateReflectionDto) {}

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, Between } from 'typeorm';
 import { Diary } from './entities/diary.entity';
 import { CreateDiaryDto } from './dto/create-diary.dto';
 import { UpdateDiaryDto } from './dto/update-diary.dto';
@@ -10,6 +10,9 @@ import { DiaryBehaviorsService } from '@/diary-behaviors/diary-behaviors.service
 import { UserSkillActivitiesService } from '@/user-skill-activities/user-skill-activities.service';
 import { ReflectionsService } from '@/reflections/reflections.service';
 import { UsersService } from '@/users/users.service';
+import { DiaryMoodState } from '@/diary-mood-states/entities/diary-mood-state.entity';
+import { DiaryBehavior } from '@/diary-behaviors/entities/diary-behavior.entity';
+import { Reflection } from '@/reflections/entities/reflection.entity';
 
 @Injectable()
 export class DiariesService {
@@ -169,7 +172,7 @@ export class DiariesService {
     });
 
     if (!diary) {
-      throw new NotFoundException(`Diary with ID ${id} not found`);
+      throw new NotFoundException(`Diary not found`);
     }
 
     const skillActivities =
@@ -189,12 +192,119 @@ export class DiariesService {
     return await withTransaction(
       this.dataSource,
       async (manager) => {
-        const diary = await this.findOne(id);
-        Object.assign(diary, updateDiaryDto);
-        return await manager.save(diary);
+        const diary = await this.diaryRepository.findOne({ where: { id } });
+        if (!diary) {
+          throw new NotFoundException(`Diary not found`);
+        }
+
+        if (updateDiaryDto.moodStates?.length) {
+          for (const ms of updateDiaryDto.moodStates) {
+            await manager.upsert(
+              DiaryMoodState,
+              {
+                diaryId: id,
+                moodStateId: ms.moodStateId,
+                rating: ms.rating,
+                deletedAt: null,
+              },
+              { conflictPaths: ['diaryId', 'moodStateId'] },
+            );
+          }
+        }
+
+        if (updateDiaryDto.behaviors?.length) {
+          for (const b of updateDiaryDto.behaviors) {
+            await manager.upsert(
+              DiaryBehavior,
+              {
+                diaryId: id,
+                behaviorId: b.behaviorId,
+                hasHappened: b.hasHappened,
+                deletedAt: null,
+              },
+              { conflictPaths: ['diaryId', 'behaviorId'] },
+            );
+          }
+        }
+
+        if (updateDiaryDto.reflections) {
+          const existingReflection = await manager.findOne(Reflection, {
+            where: { diary: { id } },
+            withDeleted: true,
+          });
+          if (existingReflection) {
+            Object.assign(existingReflection, updateDiaryDto.reflections, {
+              deletedAt: null,
+            });
+            await manager.save(existingReflection);
+          } else {
+            const newReflection = manager.create(Reflection, {
+              ...updateDiaryDto.reflections,
+              diary,
+            });
+            await manager.save(newReflection);
+          }
+        }
+
+        return diary;
       },
       manager,
     );
+  }
+
+  async getWeeklyStreak(userId: number): Promise<{
+    weekStreak: number;
+    consecutiveStreak: number;
+    daysWithEntries: { day: string; date: string; hasEntry: boolean }[];
+  }> {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const diaries = await this.diaryRepository.find({
+      where: { user: { id: userId }, entryDate: Between(monday, sunday) },
+      select: ['entryDate'],
+    });
+
+    const daysSet = new Set<string>(
+      diaries.map((d) => d.entryDate.toISOString().split('T')[0]),
+    );
+
+    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const dateStr = day.toISOString().split('T')[0];
+      return {
+        day: dayNames[i],
+        date: dateStr,
+        hasEntry: daysSet.has(dateStr),
+      };
+    });
+
+    const weekStreak = weekDays.filter((d) => d.hasEntry).length;
+
+    let consecutiveStreak = 0;
+    const checkDate = new Date(today);
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (daysSet.has(dateStr)) {
+        consecutiveStreak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return { weekStreak, consecutiveStreak, daysWithEntries: weekDays };
   }
 
   async remove(id: number, manager?: EntityManager): Promise<string> {

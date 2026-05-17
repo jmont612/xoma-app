@@ -29,6 +29,9 @@ export class EmaLog {
   @Column({ type: 'boolean', nullable: true })
   booleanValue: boolean;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  riskLevel: string | null;
+
   @CreateDateColumn()
   logDate: Date;
 

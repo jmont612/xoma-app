@@ -28,6 +28,6 @@ export class DiaryBehavior {
   @Column()
   hasHappened: boolean;
 
-  @DeleteDateColumn()
-  deletedAt: Date;
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
 }

@@ -69,6 +69,26 @@ export class UserSkillActivitiesService {
     });
   }
 
+  async findLatestTodayByUserId(
+    userId: number,
+    limit = 4,
+  ): Promise<UserSkillActivity[]> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return await this.userSkillActivityRepository.find({
+      where: {
+        user: { id: userId },
+        createdAt: Between(startOfDay, endOfDay),
+      },
+      relations: ['subSkill'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async update(
     id: number,
     updateSkillActivityDto: UpdateSkillActivityDto,

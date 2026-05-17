@@ -21,4 +21,10 @@ export class Auth {
 
   @Column({ type: 'text' })
   refreshToken: string;
+
+  @Column({ type: 'varchar', length: 6, nullable: true })
+  verificationCode: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationCodeExpiry: Date | null;
 }
