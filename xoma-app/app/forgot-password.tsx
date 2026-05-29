@@ -59,8 +59,8 @@ export default function ForgotPasswordScreen() {
       setCooldownSeconds(60);
       showDialog({
         type: 'success',
-        title: 'Listo',
-        message: 'Te enviamos instrucciones para restablecer tu contraseña.',
+        title: 'Código enviado',
+        message: 'Te enviamos un código de 6 dígitos a tu correo. Úsalo para crear tu nueva contraseña.',
       });
     } catch (e: any) {
       const message = String(e?.message || 'No se pudo procesar tu solicitud. Inténtalo de nuevo.');
@@ -123,11 +123,17 @@ export default function ForgotPasswordScreen() {
 
             <TouchableOpacity
               onPress={() => {
+                const wasSuccess = dialog?.type === 'success';
                 setDialog(null);
+                if (wasSuccess) {
+                  router.push(`/reset-password?email=${encodeURIComponent(email.trim())}`);
+                }
               }}
               className="mt-6 rounded-full py-4 bg-primary active:bg-primary/90"
             >
-              <Text className="text-white text-center font-bold text-base">Entendido</Text>
+              <Text className="text-white text-center font-bold text-base">
+                {dialog?.type === 'success' ? 'Ingresar código' : 'Entendido'}
+              </Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

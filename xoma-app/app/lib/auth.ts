@@ -64,6 +64,19 @@ export async function requestPasswordReset(email: string): Promise<any> {
   return res.data;
 }
 
+export async function verifyResetCode(
+  email: string,
+  verificationCode: string,
+  newPassword: string,
+): Promise<any> {
+  const res = await post<ApiResponse<any>>(
+    '/auth/verify-reset-code',
+    { email, verificationCode, newPassword },
+    { skipAuth: true },
+  );
+  return res.data;
+}
+
 export function logout() {
   clearTokens();
   clearStoredTokens();

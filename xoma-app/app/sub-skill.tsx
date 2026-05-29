@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, DeviceEventEmitter, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, DeviceEventEmitter, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { get, post } from './lib/api'
 import { loadUser } from './lib/storage'
@@ -57,7 +57,6 @@ export default function SubSkillScreen() {
   const [ratings, setRatings] = useState<Record<number, number>>({})
   const [secondsLeft, setSecondsLeft] = useState(30)
   const [timerRunning, setTimerRunning] = useState(false)
-  const [reflection, setReflection] = useState('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {

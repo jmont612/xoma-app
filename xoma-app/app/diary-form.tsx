@@ -1,9 +1,22 @@
-import Slider from '@react-native-community/slider';
-import { router, useLocalSearchParams } from 'expo-router';
-import { post, put, get } from './lib/api';
-import { loadUser } from './lib/storage';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Slider from "@react-native-community/slider";
+import { router, useLocalSearchParams } from "expo-router";
+import { post, patch, get } from "./lib/api";
+import { loadUser } from "./lib/storage";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface EmotionState {
   alegria: number;
@@ -26,8 +39,25 @@ interface YesNoQuestions {
   conductaImpulsiva: boolean | null;
 }
 
-const DEFAULT_EMOTIONS: EmotionState = { alegria: 5, tristeza: 5, miedo: 5, ira: 5, culpa: 5, verguenza: 5, rechazo: 5 };
-const DEFAULT_YESNO: YesNoQuestions = { pensoAutolesion: null, autolesion: null, ideacionSuicida: null, intentoSuicidio: null, pensoSustancias: null, usoSustancias: null, pensoConductaImpulsiva: null, conductaImpulsiva: null };
+const DEFAULT_EMOTIONS: EmotionState = {
+  alegria: 5,
+  tristeza: 5,
+  miedo: 5,
+  ira: 5,
+  culpa: 5,
+  verguenza: 5,
+  rechazo: 5,
+};
+const DEFAULT_YESNO: YesNoQuestions = {
+  pensoAutolesion: null,
+  autolesion: null,
+  ideacionSuicida: null,
+  intentoSuicidio: null,
+  pensoSustancias: null,
+  usoSustancias: null,
+  pensoConductaImpulsiva: null,
+  conductaImpulsiva: null,
+};
 
 type EmotionKey = keyof EmotionState;
 type YesNoKey = keyof YesNoQuestions;
@@ -61,7 +91,7 @@ const EmotionSliderRow = React.memo(function EmotionSliderRow(props: {
 
       <View className="mt-3">
         <Slider
-          style={{ width: '100%', height: 40 }}
+          style={{ width: "100%", height: 40 }}
           minimumValue={0}
           maximumValue={10}
           value={tempValue}
@@ -73,8 +103,12 @@ const EmotionSliderRow = React.memo(function EmotionSliderRow(props: {
           step={1}
         />
         <View className="flex-row justify-between mt-1">
-          <Text className="text-gray-400 text-[10px] font-semibold">{leftLabel}</Text>
-          <Text className="text-gray-400 text-[10px] font-semibold">{rightLabel}</Text>
+          <Text className="text-gray-400 text-[10px] font-semibold">
+            {leftLabel}
+          </Text>
+          <Text className="text-gray-400 text-[10px] font-semibold">
+            {rightLabel}
+          </Text>
         </View>
       </View>
     </View>
@@ -96,15 +130,23 @@ const YesNoRow = React.memo(function YesNoRow(props: {
       <View className="flex-row bg-white rounded-full p-1 border border-gray-100">
         <TouchableOpacity
           onPress={() => onChange(false)}
-          className={`px-4 py-2 rounded-full ${noSelected ? 'bg-primary' : 'bg-transparent'}`}
+          className={`px-4 py-2 rounded-full ${noSelected ? "bg-primary" : "bg-transparent"}`}
         >
-          <Text className={`text-xs font-bold ${noSelected ? 'text-white' : 'text-gray-500'}`}>No</Text>
+          <Text
+            className={`text-xs font-bold ${noSelected ? "text-white" : "text-gray-500"}`}
+          >
+            No
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onChange(true)}
-          className={`px-4 py-2 rounded-full ${yesSelected ? 'bg-primary' : 'bg-transparent'}`}
+          className={`px-4 py-2 rounded-full ${yesSelected ? "bg-primary" : "bg-transparent"}`}
         >
-          <Text className={`text-xs font-bold ${yesSelected ? 'text-white' : 'text-gray-500'}`}>Sí</Text>
+          <Text
+            className={`text-xs font-bold ${yesSelected ? "text-white" : "text-gray-500"}`}
+          >
+            Sí
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -116,15 +158,24 @@ export default function DiaryFormScreen() {
   const editingDiaryId = diaryId ? Number(diaryId) : null;
   const [emotions, setEmotions] = useState<EmotionState>(DEFAULT_EMOTIONS);
 
-  const [yesNoAnswers, setYesNoAnswers] = useState<YesNoQuestions>(DEFAULT_YESNO);
+  const [yesNoAnswers, setYesNoAnswers] =
+    useState<YesNoQuestions>(DEFAULT_YESNO);
 
   const [textAnswers, setTextAnswers] = useState({
-    dificultad: '',
-    ayuda: '',
+    dificultad: "",
+    ayuda: "",
   });
   const MAX_REFLEXION_CHARS = 300;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const baselineRef = useRef<{ emotions: EmotionState; yesNo: YesNoQuestions; text: { dificultad: string; ayuda: string } }>({ emotions: DEFAULT_EMOTIONS, yesNo: DEFAULT_YESNO, text: { dificultad: '', ayuda: '' } });
+  const baselineRef = useRef<{
+    emotions: EmotionState;
+    yesNo: YesNoQuestions;
+    text: { dificultad: string; ayuda: string };
+  }>({
+    emotions: DEFAULT_EMOTIONS,
+    yesNo: DEFAULT_YESNO,
+    text: { dificultad: "", ayuda: "" },
+  });
 
   useEffect(() => {
     (async () => {
@@ -133,11 +184,29 @@ export default function DiaryFormScreen() {
         const user = await loadUser<any>();
         const userId = (user?.id ?? user?.userId ?? 1) as number;
         const res = await get<{ data: any[] }>(`/diaries/user/${userId}`);
-        const list = Array.isArray(res.data) ? res.data : (res as any)?.data || [];
+        const list = Array.isArray(res.data)
+          ? res.data
+          : (res as any)?.data || [];
         const found = list.find((d: any) => Number(d.id) === editingDiaryId);
         if (!found) return;
-        const moodKeyById: Record<number, keyof EmotionState> = { 1: 'alegria', 2: 'tristeza', 3: 'miedo', 4: 'ira', 5: 'culpa', 6: 'verguenza', 7: 'rechazo' };
-        const newEmotions: EmotionState = { alegria: 5, tristeza: 5, miedo: 5, ira: 5, culpa: 5, verguenza: 5, rechazo: 5 };
+        const moodKeyById: Record<number, keyof EmotionState> = {
+          1: "alegria",
+          2: "tristeza",
+          3: "miedo",
+          4: "ira",
+          5: "culpa",
+          6: "verguenza",
+          7: "rechazo",
+        };
+        const newEmotions: EmotionState = {
+          alegria: 5,
+          tristeza: 5,
+          miedo: 5,
+          ira: 5,
+          culpa: 5,
+          verguenza: 5,
+          rechazo: 5,
+        };
         (found.moodStates || []).forEach((ms: any) => {
           const key = moodKeyById[ms.moodStateId as number];
           if (key) newEmotions[key] = Number(ms.rating) || 0;
@@ -145,10 +214,24 @@ export default function DiaryFormScreen() {
         setEmotions(newEmotions);
 
         const behaviorKeyById: Record<number, keyof YesNoQuestions> = {
-          1: 'pensoAutolesion', 2: 'autolesion', 3: 'ideacionSuicida', 4: 'intentoSuicidio', 5: 'pensoSustancias', 6: 'usoSustancias', 7: 'pensoConductaImpulsiva', 8: 'conductaImpulsiva'
+          1: "pensoAutolesion",
+          2: "autolesion",
+          3: "ideacionSuicida",
+          4: "intentoSuicidio",
+          5: "pensoSustancias",
+          6: "usoSustancias",
+          7: "pensoConductaImpulsiva",
+          8: "conductaImpulsiva",
         };
         const newYesNo: YesNoQuestions = {
-          pensoAutolesion: null, autolesion: null, ideacionSuicida: null, intentoSuicidio: null, pensoSustancias: null, usoSustancias: null, pensoConductaImpulsiva: null, conductaImpulsiva: null
+          pensoAutolesion: null,
+          autolesion: null,
+          ideacionSuicida: null,
+          intentoSuicidio: null,
+          pensoSustancias: null,
+          usoSustancias: null,
+          pensoConductaImpulsiva: null,
+          conductaImpulsiva: null,
         };
         (found.behaviors || []).forEach((b: any) => {
           const key = behaviorKeyById[b.behaviorId as number];
@@ -157,71 +240,145 @@ export default function DiaryFormScreen() {
         setYesNoAnswers(newYesNo);
 
         const filledText = {
-          dificultad: found.reflections?.mostDifficultToday || '',
-          ayuda: found.reflections?.mostHelpfulToday || '',
+          dificultad: found.reflections?.mostDifficultToday || "",
+          ayuda: found.reflections?.mostHelpfulToday || "",
         };
         setTextAnswers(filledText);
-        baselineRef.current = { emotions: newEmotions, yesNo: newYesNo, text: filledText };
+        baselineRef.current = {
+          emotions: newEmotions,
+          yesNo: newYesNo,
+          text: filledText,
+        };
       } catch {}
     })();
   }, [editingDiaryId]);
 
   const textFilled = useMemo(() => {
-    return textAnswers.dificultad.trim().length > 0 && textAnswers.ayuda.trim().length > 0;
+    return (
+      textAnswers.dificultad.trim().length > 0 &&
+      textAnswers.ayuda.trim().length > 0
+    );
   }, [textAnswers]);
 
   const isComplete = useMemo(() => {
-    const yesnoOk = Object.values(yesNoAnswers).every(v => v !== null);
+    const yesnoOk = Object.values(yesNoAnswers).every((v) => v !== null);
     return yesnoOk && textFilled;
   }, [yesNoAnswers, textFilled]);
 
   const isDirty = useMemo(() => {
-    const emotionsChanged = JSON.stringify(emotions) !== JSON.stringify(baselineRef.current.emotions);
-    const yesNoChanged = JSON.stringify(yesNoAnswers) !== JSON.stringify(baselineRef.current.yesNo);
-    const textChanged = JSON.stringify(textAnswers) !== JSON.stringify(baselineRef.current.text);
+    const emotionsChanged =
+      JSON.stringify(emotions) !== JSON.stringify(baselineRef.current.emotions);
+    const yesNoChanged =
+      JSON.stringify(yesNoAnswers) !==
+      JSON.stringify(baselineRef.current.yesNo);
+    const textChanged =
+      JSON.stringify(textAnswers) !== JSON.stringify(baselineRef.current.text);
     return emotionsChanged || yesNoChanged || textChanged;
   }, [emotions, yesNoAnswers, textAnswers]);
 
-  const emotionConfig: { key: EmotionKey; label: string; icon: string; left: string; right: string }[] = [
-    { key: 'alegria', label: 'Alegría', icon: '😊', left: 'CALMA', right: 'INTENSIDAD 0-10' },
-    { key: 'tristeza', label: 'Tristeza', icon: '😢', left: 'LEVE', right: 'PROFUNDA' },
-    { key: 'miedo', label: 'Miedo', icon: '😨', left: 'LEVE', right: 'INTENSO' },
-    { key: 'ira', label: 'Ira', icon: '🔥', left: 'CALMA', right: 'INTENSA' },
-    { key: 'culpa', label: 'Culpa', icon: '😔', left: 'LEVE', right: 'INTENSA' },
-    { key: 'verguenza', label: 'Vergüenza', icon: '😳', left: 'LEVE', right: 'INTENSA' },
-    { key: 'rechazo', label: 'Rechazo', icon: '🤢', left: 'LEVE', right: 'INTENSO' },
+  const emotionConfig: {
+    key: EmotionKey;
+    label: string;
+    icon: string;
+    left: string;
+    right: string;
+  }[] = [
+    {
+      key: "alegria",
+      label: "Alegría",
+      icon: "😊",
+      left: "CALMA",
+      right: "INTENSIDAD 0-10",
+    },
+    {
+      key: "tristeza",
+      label: "Tristeza",
+      icon: "😢",
+      left: "LEVE",
+      right: "PROFUNDA",
+    },
+    {
+      key: "miedo",
+      label: "Miedo",
+      icon: "😨",
+      left: "LEVE",
+      right: "INTENSO",
+    },
+    { key: "ira", label: "Ira", icon: "🔥", left: "CALMA", right: "INTENSA" },
+    {
+      key: "culpa",
+      label: "Culpa",
+      icon: "😔",
+      left: "LEVE",
+      right: "INTENSA",
+    },
+    {
+      key: "verguenza",
+      label: "Vergüenza",
+      icon: "😳",
+      left: "LEVE",
+      right: "INTENSA",
+    },
+    {
+      key: "rechazo",
+      label: "Rechazo",
+      icon: "🤢",
+      left: "LEVE",
+      right: "INTENSO",
+    },
   ];
 
   const yesNoQuestions = [
-    { key: 'pensoAutolesion', label: 'Pensaste en autolesionarte?' },
-    { key: 'autolesion', label: 'Te autolesionaste?' },
-    { key: 'ideacionSuicida', label: 'Tuviste ideación suicida?' },
-    { key: 'intentoSuicidio', label: 'Lo intentaste?' },
-    { key: 'pensoSustancias', label: 'Pensaste en usar sustancias?' },
-    { key: 'usoSustancias', label: 'Usaste sustancias?' },
-    { key: 'pensoConductaImpulsiva', label: 'Pensaste en realizar alguna conducta impulsiva?' },
-    { key: 'conductaImpulsiva', label: 'Tuviste alguna conducta impulsiva (ej. atracones, compras, peleas)?' },
+    { key: "pensoAutolesion", label: "Pensaste en autolesionarte?" },
+    { key: "autolesion", label: "Te autolesionaste?" },
+    { key: "ideacionSuicida", label: "Tuviste ideación suicida?" },
+    { key: "intentoSuicidio", label: "Lo intentaste?" },
+    { key: "pensoSustancias", label: "Pensaste en usar sustancias?" },
+    { key: "usoSustancias", label: "Usaste sustancias?" },
+    {
+      key: "pensoConductaImpulsiva",
+      label: "Pensaste en realizar alguna conducta impulsiva?",
+    },
+    {
+      key: "conductaImpulsiva",
+      label:
+        "Tuviste alguna conducta impulsiva (ej. atracones, compras, peleas)?",
+    },
   ];
 
-  const handleEmotionChange = useCallback((emotion: EmotionKey, value: number) => {
-    setEmotions(prev => ({ ...prev, [emotion]: value }));
-  }, []);
+  const handleEmotionChange = useCallback(
+    (emotion: EmotionKey, value: number) => {
+      setEmotions((prev) => ({ ...prev, [emotion]: value }));
+    },
+    [],
+  );
 
-  const handleYesNoChange = useCallback((question: YesNoKey, value: boolean) => {
-    setYesNoAnswers(prev => ({ ...prev, [question]: value }));
-  }, []);
+  const handleYesNoChange = useCallback(
+    (question: YesNoKey, value: boolean) => {
+      setYesNoAnswers((prev) => ({ ...prev, [question]: value }));
+    },
+    [],
+  );
 
   const handleSubmit = async () => {
     // Validar que todas las preguntas de sí/no estén respondidas
-    const unansweredQuestions = Object.values(yesNoAnswers).some(answer => answer === null);
-    
+    const unansweredQuestions = Object.values(yesNoAnswers).some(
+      (answer) => answer === null,
+    );
+
     if (unansweredQuestions) {
-      Alert.alert('Formulario incompleto', 'Por favor responde todas las preguntas de sí/no.');
+      Alert.alert(
+        "Formulario incompleto",
+        "Por favor responde todas las preguntas de sí/no.",
+      );
       return;
     }
 
     if (!isComplete) {
-      Alert.alert('Formulario incompleto', 'Por favor completa todos los campos requeridos.');
+      Alert.alert(
+        "Formulario incompleto",
+        "Por favor completa todos los campos requeridos.",
+      );
       return;
     }
     try {
@@ -230,11 +387,34 @@ export default function DiaryFormScreen() {
       const user = await loadUser<any>();
       const userId = (user?.id ?? user?.userId ?? 1) as number;
 
-      const moodStateOrder: (keyof EmotionState)[] = ['alegria', 'tristeza', 'miedo', 'ira', 'culpa', 'verguenza', 'rechazo'];
-      const moodStates = moodStateOrder.map((key, idx) => ({ moodStateId: idx + 1, rating: Math.round(emotions[key]) }));
+      const moodStateOrder: (keyof EmotionState)[] = [
+        "alegria",
+        "tristeza",
+        "miedo",
+        "ira",
+        "culpa",
+        "verguenza",
+        "rechazo",
+      ];
+      const moodStates = moodStateOrder.map((key, idx) => ({
+        moodStateId: idx + 1,
+        rating: Math.round(emotions[key]),
+      }));
 
-      const behaviorOrder: (keyof YesNoQuestions)[] = ['pensoAutolesion', 'autolesion', 'ideacionSuicida', 'intentoSuicidio', 'pensoSustancias', 'usoSustancias', 'pensoConductaImpulsiva', 'conductaImpulsiva'];
-      const behaviors = behaviorOrder.map((key, idx) => ({ behaviorId: idx + 1, hasHappened: yesNoAnswers[key] === true }));
+      const behaviorOrder: (keyof YesNoQuestions)[] = [
+        "pensoAutolesion",
+        "autolesion",
+        "ideacionSuicida",
+        "intentoSuicidio",
+        "pensoSustancias",
+        "usoSustancias",
+        "pensoConductaImpulsiva",
+        "conductaImpulsiva",
+      ];
+      const behaviors = behaviorOrder.map((key, idx) => ({
+        behaviorId: idx + 1,
+        hasHappened: yesNoAnswers[key] === true,
+      }));
 
       const payload = {
         userId,
@@ -247,17 +427,24 @@ export default function DiaryFormScreen() {
       };
 
       if (editingDiaryId) {
-        await put<any>(`/diaries/${editingDiaryId}`, payload);
-        Alert.alert('Cambios guardados', 'Tu registro ha sido actualizado.', [{ text: 'OK', onPress: () => router.back() }]);
+        await patch<any>(`/diaries/${editingDiaryId}`, payload);
+        Alert.alert("Cambios guardados", "Tu registro ha sido actualizado.", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
       } else {
-        await post<any>('/diaries', payload);
-        Alert.alert('Registro guardado', 'Tu entrada del diario ha sido guardada exitosamente.', [{ text: 'OK', onPress: () => router.back() }]);
+        await post<any>("/diaries", payload);
+        Alert.alert(
+          "Registro guardado",
+          "Tu entrada del diario ha sido guardada exitosamente.",
+          [{ text: "OK", onPress: () => router.back() }],
+        );
       }
     } catch (err: any) {
-      const msg = err?.code === 'NETWORK_ERROR'
-        ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ''}`
-        : err?.message || 'No se pudo guardar el diario';
-      Alert.alert('Error', msg);
+      const msg =
+        err?.code === "NETWORK_ERROR"
+          ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ""}`
+          : err?.message || "No se pudo guardar el diario";
+      Alert.alert("Error", msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -272,15 +459,30 @@ export default function DiaryFormScreen() {
       >
         <View className="px-6 pt-14 pb-2">
           <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center h-10">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="flex-row items-center h-10"
+            >
               <View className="w-10 h-10 items-center justify-center -ml-2 mr-1">
-                <Text className="text-primary text-xl" style={{ includeFontPadding: false, lineHeight: 20 }}>←</Text>
+                <Text
+                  className="text-primary text-xl"
+                  style={{ includeFontPadding: false, lineHeight: 20 }}
+                >
+                  ←
+                </Text>
               </View>
-              <Text className="text-primary text-sm font-bold" style={{ includeFontPadding: false, lineHeight: 16 }}>Volver</Text>
+              <Text
+                className="text-primary text-sm font-bold"
+                style={{ includeFontPadding: false, lineHeight: 16 }}
+              >
+                Volver
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <Text className="text-3xl font-extrabold text-gray-900 mt-4">{editingDiaryId ? 'Editar Registro' : 'Nuevo Registro'}</Text>
+          <Text className="text-3xl font-extrabold text-gray-900 mt-4">
+            {editingDiaryId ? "Editar Registro" : "Nuevo Registro"}
+          </Text>
           <Text className="text-gray-400 text-sm mt-2 leading-relaxed">
             Tómate un momento para conectar contigo mismo.
           </Text>
@@ -288,9 +490,13 @@ export default function DiaryFormScreen() {
 
         <View className="px-6 mt-6">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-gray-800 font-extrabold text-lg">Mis Emociones</Text>
+            <Text className="text-gray-800 font-extrabold text-lg">
+              Mis Emociones
+            </Text>
             <View className="bg-[#EAF5F5] px-4 py-2 rounded-full border border-primary/10">
-              <Text className="text-primary text-xs font-bold">Intensidad 0-10</Text>
+              <Text className="text-primary text-xs font-bold">
+                Intensidad 0-10
+              </Text>
             </View>
           </View>
 
@@ -307,7 +513,9 @@ export default function DiaryFormScreen() {
           ))}
 
           <View className="bg-[#DDF4F3] rounded-[28px] p-6 mt-4 mb-6 border border-primary/10">
-            <Text className="text-gray-800 font-extrabold text-base mb-2">Comportamientos y Promocionismo</Text>
+            <Text className="text-gray-800 font-extrabold text-base mb-2">
+              Comportamientos y Promocionismo
+            </Text>
             <Text className="text-gray-600 text-xs mb-5">
               Responde con honestidad, este es un espacio seguro para ti.
             </Text>
@@ -323,14 +531,20 @@ export default function DiaryFormScreen() {
           </View>
 
           <View className="bg-white rounded-[28px] p-6 shadow-sm border border-gray-100 mb-6">
-            <Text className="text-gray-800 font-extrabold text-base mb-6">Reflexiones del día</Text>
+            <Text className="text-gray-800 font-extrabold text-base mb-6">
+              Reflexiones del día
+            </Text>
 
             <View className="mb-6">
-              <Text className="text-gray-700 font-semibold mb-3">Lo que más me costó hoy fue...</Text>
+              <Text className="text-gray-700 font-semibold mb-3">
+                Lo que más me costó hoy fue...
+              </Text>
               <View className="bg-[#F8FAF9] rounded-[22px] border border-gray-100">
                 <TextInput
                   value={textAnswers.dificultad}
-                  onChangeText={(text) => setTextAnswers(prev => ({ ...prev, dificultad: text }))}
+                  onChangeText={(text) =>
+                    setTextAnswers((prev) => ({ ...prev, dificultad: text }))
+                  }
                   placeholder="Escribe aquí..."
                   placeholderTextColor="#9CA3AF"
                   selectionColor="#2D5A6E"
@@ -342,17 +556,25 @@ export default function DiaryFormScreen() {
                 />
               </View>
               <View className="flex-row justify-between mt-2 px-1">
-                <Text className="text-gray-400 text-xs">Máx. {MAX_REFLEXION_CHARS} caracteres</Text>
-                <Text className="text-gray-400 text-xs">{textAnswers.dificultad.length}/{MAX_REFLEXION_CHARS}</Text>
+                <Text className="text-gray-400 text-xs">
+                  Máx. {MAX_REFLEXION_CHARS} caracteres
+                </Text>
+                <Text className="text-gray-400 text-xs">
+                  {textAnswers.dificultad.length}/{MAX_REFLEXION_CHARS}
+                </Text>
               </View>
             </View>
 
             <View>
-              <Text className="text-gray-700 font-semibold mb-3">Lo que me ayudó hoy fue...</Text>
+              <Text className="text-gray-700 font-semibold mb-3">
+                Lo que me ayudó hoy fue...
+              </Text>
               <View className="bg-[#F8FAF9] rounded-[22px] border border-gray-100">
                 <TextInput
                   value={textAnswers.ayuda}
-                  onChangeText={(text) => setTextAnswers(prev => ({ ...prev, ayuda: text }))}
+                  onChangeText={(text) =>
+                    setTextAnswers((prev) => ({ ...prev, ayuda: text }))
+                  }
                   placeholder="Escribe aquí..."
                   placeholderTextColor="#9CA3AF"
                   selectionColor="#2D5A6E"
@@ -364,8 +586,12 @@ export default function DiaryFormScreen() {
                 />
               </View>
               <View className="flex-row justify-between mt-2 px-1">
-                <Text className="text-gray-400 text-xs">Máx. {MAX_REFLEXION_CHARS} caracteres</Text>
-                <Text className="text-gray-400 text-xs">{textAnswers.ayuda.length}/{MAX_REFLEXION_CHARS}</Text>
+                <Text className="text-gray-400 text-xs">
+                  Máx. {MAX_REFLEXION_CHARS} caracteres
+                </Text>
+                <Text className="text-gray-400 text-xs">
+                  {textAnswers.ayuda.length}/{MAX_REFLEXION_CHARS}
+                </Text>
               </View>
             </View>
           </View>
@@ -378,10 +604,14 @@ export default function DiaryFormScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={isSubmitting || !isComplete || !isDirty}
-            className={`rounded-full py-5 shadow-sm ${isSubmitting || !isComplete || !isDirty ? 'bg-primary/60' : 'bg-primary active:bg-primary/90'}`}
+            className={`rounded-full py-5 shadow-sm ${isSubmitting || !isComplete || !isDirty ? "bg-primary/60" : "bg-primary active:bg-primary/90"}`}
           >
             <Text className="text-white text-center font-bold text-base">
-              {isSubmitting ? 'Guardando…' : editingDiaryId ? 'Guardar Registro' : 'Guardar Registro'}
+              {isSubmitting
+                ? "Guardando…"
+                : editingDiaryId
+                  ? "Guardar Registro"
+                  : "Guardar Registro"}
             </Text>
           </TouchableOpacity>
         </View>
