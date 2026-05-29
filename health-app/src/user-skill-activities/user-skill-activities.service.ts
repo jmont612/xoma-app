@@ -4,9 +4,9 @@ import { Repository, DataSource, EntityManager, Between } from 'typeorm';
 import { UserSkillActivity } from './entities/user-skill-activity.entity';
 import { CreateUserSkillActivityDto } from './dto/create-user-skill-activity.dto';
 import { UpdateSkillActivityDto } from './dto/update-user-skill-activity.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { User } from 'src/users/entities/user.entity';
-import { SubSkill } from 'src/sub-skills/entities/sub-skill.entity';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { User } from '@/users/entities/user.entity';
+import { SubSkill } from '@/sub-skills/entities/sub-skill.entity';
 
 @Injectable()
 export class UserSkillActivitiesService {
@@ -66,6 +66,26 @@ export class UserSkillActivitiesService {
         createdAt: Between(startOfDay, endOfDay),
       },
       relations: ['subSkill'],
+    });
+  }
+
+  async findLatestTodayByUserId(
+    userId: number,
+    limit = 4,
+  ): Promise<UserSkillActivity[]> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return await this.userSkillActivityRepository.find({
+      where: {
+        user: { id: userId },
+        createdAt: Between(startOfDay, endOfDay),
+      },
+      relations: ['subSkill'],
+      order: { createdAt: 'DESC' },
+      take: limit,
     });
   }
 

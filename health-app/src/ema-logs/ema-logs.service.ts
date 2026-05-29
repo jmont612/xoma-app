@@ -4,19 +4,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, Between, In } from 'typeorm';
 import { EmaLog } from './entities/ema-log.entity';
 import { UpdateEmaLogDto } from './dto/update-ema-log.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { MlPredictionService } from 'src/ml-prediction/ml-prediction.service';
-import { MlPredictionDto } from 'src/ml-prediction/dto/ml-prediction.dto';
-import { SubSkill } from 'src/sub-skills/entities/sub-skill.entity';
-import { UserSkillActivity } from 'src/user-skill-activities/entities/user-skill-activity.entity';
-import { EmergencyContact } from 'src/emergency-contacts/entities/emergency-contact.entity';
-import { UsersService } from 'src/users/users.service';
-import { EmaTypesService } from 'src/ema-types/ema-types.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { MlPredictionService } from '@/ml-prediction/ml-prediction.service';
+import { MlPredictionDto } from '@/ml-prediction/dto/ml-prediction.dto';
+import { SubSkill } from '@/sub-skills/entities/sub-skill.entity';
+import { UserSkillActivity } from '@/user-skill-activities/entities/user-skill-activity.entity';
+import { EmergencyContact } from '@/emergency-contacts/entities/emergency-contact.entity';
+import { UsersService } from '@/users/users.service';
+import { EmaTypesService } from '@/ema-types/ema-types.service';
 import { CreateEmaLogsArrayDto } from './dto/create-ema-logs-array.dto';
-import { EmaTypeEvaluationType } from 'src/common/enums/ema-type-evaluation-type.enum';
+import { EmaTypeEvaluationType } from '@/common/enums/ema-type-evaluation-type.enum';
 
 @Injectable()
 export class EmaLogsService {
@@ -68,9 +68,18 @@ export class EmaLogsService {
           });
           emaLogs.push(emaLog);
         }
-        await manager.save(EmaLog, emaLogs);
+        const savedEmaLogs = await manager.save(EmaLog, emaLogs);
 
         const mlPrediction = await this.getMlPrediction(emaLogs);
+        const riskLevel = mlPrediction.label_gate;
+
+        if (savedEmaLogs.length > 0) {
+          await manager.update(
+            EmaLog,
+            { id: In(savedEmaLogs.map((l) => l.id)) },
+            { riskLevel },
+          );
+        }
         const recommendation = await this.getRecommendedSubSkill(
           mlPrediction.label_gate,
           user.id,
@@ -168,6 +177,59 @@ export class EmaLogsService {
     }
 
     return { recommendedSubSkills: [] };
+  }
+
+  async findLastEmaByUserAndDate(
+    userId: number,
+    date?: string,
+  ): Promise<EmaLog[]> {
+    const targetDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const allLogsToday = await this.emaLogRepository.find({
+      where: {
+        user: { id: userId },
+        logDate: Between(startOfDay, endOfDay),
+      },
+      relations: ['emaType'],
+      order: { logDate: 'DESC' },
+    });
+
+    if (allLogsToday.length === 0) return [];
+
+    // Agrupa los logs de la sesión más reciente (margen de 30 segundos)
+    const latestLogDate = allLogsToday[0].logDate;
+    return allLogsToday.filter(
+      (log) => latestLogDate.getTime() - log.logDate.getTime() <= 30000,
+    );
+  }
+
+  async getDailySummary(
+    userId: number,
+    date?: string,
+  ): Promise<{ lastEma: EmaLog[]; skillActivities: UserSkillActivity[] }> {
+    const targetDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const [lastEma, skillActivities] = await Promise.all([
+      this.findLastEmaByUserAndDate(userId, date),
+      this.userSkillActivityRepository.find({
+        where: {
+          user: { id: userId },
+          createdAt: Between(startOfDay, endOfDay),
+        },
+        relations: ['subSkill'],
+        order: { createdAt: 'DESC' },
+      }),
+    ]);
+
+    return { lastEma, skillActivities };
   }
 
   async findAll(): Promise<EmaLog[]> {

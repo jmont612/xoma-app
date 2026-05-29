@@ -28,6 +28,8 @@ export class DiaryMoodState {
   @Column({ type: 'int', nullable: true })
   rating: number;
 
-  @DeleteDateColumn()
-  deletedAt: Date;
+  @DeleteDateColumn({
+    nullable: true,
+  })
+  deletedAt: Date | null;
 }

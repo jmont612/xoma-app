@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -d ./src/data-source.ts",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d ./src/data-source.ts",
-    "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d ./src/data-source.ts"
+    "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d ./src/data-source.ts",
+    "seed": "ts-node -r tsconfig-paths/register src/seeds/seed.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -31,6 +32,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.3",
     "@nestjs/typeorm": "^11.0.0",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^2.0.0",

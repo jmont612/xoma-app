@@ -8,7 +8,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Skill } from './entities/skill.entity';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 
 @Injectable()
 export class SkillsService {

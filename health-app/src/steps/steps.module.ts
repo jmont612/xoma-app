@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Step } from './entities/step.entity';
 import { StepsService } from './steps.service';
 import { StepsController } from './steps.controller';
-import { SubSkillsModule } from 'src/sub-skills/sub-skills.module';
+import { SubSkillsModule } from '@/sub-skills/sub-skills.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Step]), SubSkillsModule],

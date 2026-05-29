@@ -1,10 +1,11 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateUserDto } from './create-user.dto';
 import { IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateNestedEmergencyContactDto } from 'src/emergency-contacts/dto/create-nested-emergency-contact.dto';
+import { CreateNestedEmergencyContactDto } from '@/emergency-contacts/dto/create-nested-emergency-contact.dto';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @ApiProperty({ type: [CreateNestedEmergencyContactDto], required: false })
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => CreateNestedEmergencyContactDto)

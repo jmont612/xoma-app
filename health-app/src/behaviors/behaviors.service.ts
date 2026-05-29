@@ -8,7 +8,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Behavior } from './entities/behavior.entity';
 import { CreateBehaviorDto } from './dto/create-behavior.dto';
 import { UpdateBehaviorDto } from './dto/update-behavior.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 
 @Injectable()
 export class BehaviorsService {

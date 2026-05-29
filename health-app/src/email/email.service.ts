@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { IEmailPayload } from 'src/common/interfaces/email-payload.interface';
+import { IEmailPayload } from '@/common/interfaces/email-payload.interface';
 
 @Injectable()
 export class EmailService {

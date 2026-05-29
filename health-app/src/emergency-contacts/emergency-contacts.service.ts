@@ -4,8 +4,8 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { EmergencyContact } from './entities/emergency-contact.entity';
 import { CreateEmergencyContactDto } from './dto/create-emergency-contact.dto';
 import { UpdateEmergencyContactDto } from './dto/update-emergency-contact.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { UsersService } from 'src/users/users.service';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { UsersService } from '@/users/users.service';
 
 @Injectable()
 export class EmergencyContactsService {
@@ -79,6 +79,42 @@ export class EmergencyContactsService {
       },
       manager,
     );
+  }
+
+  async syncByUser(
+    userId: number,
+    contacts: CreateEmergencyContactDto[],
+  ): Promise<EmergencyContact[]> {
+    const user = await this.usersService.findOne(userId);
+
+    return withTransaction(this.dataSource, async (manager) => {
+      const results: EmergencyContact[] = [];
+
+      for (const contactDto of contacts) {
+        const existing = await manager.findOne(EmergencyContact, {
+          where: { user: { id: userId }, contactType: contactDto.contactType },
+          withDeleted: true,
+        });
+
+        if (existing) {
+          Object.assign(existing, {
+            firstName: contactDto.firstName,
+            lastName: contactDto.lastName,
+            phoneNumber: contactDto.phoneNumber,
+            deletedAt: null,
+          });
+          results.push(await manager.save(existing));
+        } else {
+          const newContact = manager.create(EmergencyContact, {
+            ...contactDto,
+            user,
+          });
+          results.push(await manager.save(newContact));
+        }
+      }
+
+      return results;
+    });
   }
 
   async remove(id: number, manager?: EntityManager): Promise<string> {

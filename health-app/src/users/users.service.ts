@@ -8,10 +8,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { EntityManager, Not, Repository, DataSource } from 'typeorm';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 import * as bcrypt from 'bcrypt';
-import { CreateEmergencyContactDto } from 'src/emergency-contacts/dto/create-emergency-contact.dto';
-import { EmergencyContact } from 'src/emergency-contacts/entities/emergency-contact.entity';
+import { CreateEmergencyContactDto } from '@/emergency-contacts/dto/create-emergency-contact.dto';
+import { EmergencyContact } from '@/emergency-contacts/entities/emergency-contact.entity';
 
 @Injectable()
 export class UsersService {

@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { DiaryBehavior } from './entities/diary-behavior.entity';
 import { CreateDiaryBehaviorDto } from './dto/create-diary-behavior.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { Diary } from 'src/diaries/entities/diary.entity';
-import { Behavior } from 'src/behaviors/entities/behavior.entity';
+import { withTransaction } from '@/common/helpers/transaction.helper';
+import { Diary } from '@/diaries/entities/diary.entity';
+import { Behavior } from '@/behaviors/entities/behavior.entity';
 
 @Injectable()
 export class DiaryBehaviorsService {

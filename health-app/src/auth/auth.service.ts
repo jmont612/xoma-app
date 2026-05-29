@@ -1,25 +1,24 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { CreateUserDto } from '@/users/dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Auth } from './entities/auth.entity';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
+import { User } from '@/users/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { IRequest } from 'src/common/interfaces/request.interface';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
-import { assertValidExpires } from 'src/common/utils/assertValidExpires';
-import { EmailService } from 'src/email/email.service';
+import { IRequest } from '@/common/interfaces/request.interface';
+import { withTransaction } from '../common/helpers/transaction.helper';
+import { assertValidExpires } from '@/common/utils/assertValidExpires';
+import { EmailService } from '@/email/email.service';
 import { render } from '@react-email/render';
-import ResetPasswordEmailTemplate from 'src/email/templates/resetPassword';
+import ResetPasswordOtpEmailTemplate from '@/email/templates/resetPasswordOtp';
+import { ConfirmVerificationCodeDto } from './dto/confirm-verification-code.dto';
 
 @Injectable()
 export class AuthService {
@@ -49,11 +48,9 @@ export class AuthService {
           manager,
         );
 
-        // Generate tokens
         const accessToken = this.generateAccessToken(createdUser);
         const refreshToken = this.generateRefreshToken(createdUser);
 
-        // Register tokens in database
         const authRegister = manager.create(Auth, {
           accessToken,
           user: createdUser,
@@ -136,7 +133,6 @@ export class AuthService {
       throw new NotFoundException('Invalid refresh token');
     }
 
-    // Verify refresh token
     try {
       this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET,
@@ -192,66 +188,84 @@ export class AuthService {
   async requestPasswordReset(email: string) {
     const user = await this.userService.findByEmail(email);
 
-    const payload = { sub: user.id, email: user.email };
-    const token = this.jwtService.sign(payload, {
-      expiresIn: '10m',
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+    const verificationCodeExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    let authRecord = await this.authRepository.findOne({
+      where: { user: { id: user.id } },
     });
 
-    const resetPasswordUrl = `${process.env.DOMAIN_URL}/reset-password?token=${token}`;
+    if (authRecord) {
+      authRecord.verificationCode = verificationCode;
+      authRecord.verificationCodeExpiry = verificationCodeExpiry;
+      await this.authRepository.save(authRecord);
+    } else {
+      authRecord = this.authRepository.create({
+        user,
+        accessToken: '',
+        refreshToken: '',
+        verificationCode,
+        verificationCodeExpiry,
+      });
+      await this.authRepository.save(authRecord);
+    }
 
     try {
-      const resetTemplate = await render(
-        ResetPasswordEmailTemplate({
-          resetPasswordUrl,
+      const otpTemplate = await render(
+        ResetPasswordOtpEmailTemplate({
+          verificationCode,
           userName: user.firstName,
         }),
       );
-      const emailPayload = {
+      await this.emailService.sendMail({
         to: user.email,
-        subject: 'Restablecer contraseña',
-        html: resetTemplate,
-      };
+        subject: 'Código de verificación - Restablecer contraseña',
+        html: otpTemplate,
+      });
 
-      await this.emailService.sendMail(emailPayload);
-
-      return 'Password reset email sent successfully';
-    } catch (error) {
-      throw new BadRequestException(error.message);
+      return 'Verification code sent to email';
+    } catch (_error) {
+      throw new BadRequestException('Failed to send verification code email');
     }
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { token, newPassword } = resetPasswordDto;
+  async verifyAndResetPassword(dto: ConfirmVerificationCodeDto) {
+    const { email, newPassword, verificationCode } = dto;
 
-    return await withTransaction(this.dataSource, async (manager) => {
-      try {
-        const payload = this.jwtService.verify(token);
+    const user = await this.userService.findByEmail(email);
 
-        if (!payload) {
-          throw new ForbiddenException('Invalid or expired token');
-        }
+    const authRecord = await this.authRepository.findOne({
+      where: { user: { id: user.id } },
+    });
 
-        const userId: number = payload.sub;
-        const user = await this.userService.findOne(userId);
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+    if (!authRecord?.verificationCode || !authRecord?.verificationCodeExpiry) {
+      throw new BadRequestException(
+        'No verification code found. Please request a new one.',
+      );
+    }
 
-        await manager.update(
-          User,
-          { id: user.id },
-          { password: hashedPassword },
-        );
+    if (authRecord.verificationCode !== verificationCode) {
+      throw new BadRequestException('Invalid verification code');
+    }
 
-        return 'Password updated correctly';
-      } catch (error) {
-        if (
-          error.name === 'TokenExpiredError' ||
-          error.name === 'JsonWebTokenError'
-        ) {
-          throw new ForbiddenException('Invalid or expired token');
-        }
+    if (new Date() > authRecord.verificationCodeExpiry) {
+      throw new BadRequestException('Verification code has expired');
+    }
 
-        throw new BadRequestException(error.message);
-      }
+    return withTransaction(this.dataSource, async (manager) => {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await manager.update(User, { id: user.id }, { password: hashedPassword });
+      await manager.update(
+        Auth,
+        { id: authRecord.id },
+        {
+          verificationCode: null,
+          verificationCodeExpiry: null,
+        },
+      );
+      return 'Password updated successfully';
     });
   }
 }

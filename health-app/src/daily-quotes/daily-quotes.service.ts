@@ -8,7 +8,7 @@ import { Repository, DataSource, EntityManager } from 'typeorm';
 import { DailyQuote } from './entities/daily-quote.entity';
 import { CreateDailyQuoteDto } from './dto/create-daily-quote.dto';
 import { UpdateDailyQuoteDto } from './dto/update-daily-quote.dto';
-import { withTransaction } from 'src/common/helpers/transaction.helper';
+import { withTransaction } from '@/common/helpers/transaction.helper';
 
 @Injectable()
 export class DailyQuotesService {

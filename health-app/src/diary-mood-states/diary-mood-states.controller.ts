@@ -9,12 +9,20 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { DiaryMoodStatesService } from './diary-mood-states.service';
 import { CreateDiaryMoodStateDto } from './dto/create-diary-mood-state.dto';
 import { UpdateDiaryMoodStateDto } from './dto/update-diary-mood-state.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { apiResponse } from 'src/common/helpers/response.helper';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { apiResponse } from '@/common/helpers/response.helper';
 
+@ApiTags('Diary Mood States')
+@ApiBearerAuth('access-token')
 @Controller('diary-mood-states')
 @UseGuards(JwtAuthGuard)
 export class DiaryMoodStatesController {
@@ -22,6 +30,10 @@ export class DiaryMoodStatesController {
     private readonly diaryMoodStatesService: DiaryMoodStatesService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Registrar un estado de ánimo en una entrada de diario',
+  })
+  @ApiResponse({ status: 201, description: 'Estado de ánimo registrado' })
   @Post()
   async create(@Body() createDiaryMoodStateDto: CreateDiaryMoodStateDto) {
     const diaryMoodState = await this.diaryMoodStatesService.create(
@@ -30,6 +42,13 @@ export class DiaryMoodStatesController {
     return apiResponse(diaryMoodState, 'Diary mood state created successfully');
   }
 
+  @ApiOperation({
+    summary: 'Obtener estados de ánimo de una entrada de diario',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de estados de ánimo del diario',
+  })
   @Get('diary/:diaryId')
   async findByDiaryId(@Param('diaryId', ParseIntPipe) diaryId: number) {
     const diaryMoodStates =
@@ -40,6 +59,11 @@ export class DiaryMoodStatesController {
     );
   }
 
+  @ApiOperation({
+    summary: 'Actualizar la puntuación de un estado de ánimo en el diario',
+  })
+  @ApiResponse({ status: 200, description: 'Estado de ánimo actualizado' })
+  @ApiResponse({ status: 404, description: 'No encontrado' })
   @Patch(':diaryId/:moodStateId')
   async update(
     @Param('diaryId', ParseIntPipe) diaryId: number,
@@ -54,6 +78,14 @@ export class DiaryMoodStatesController {
     return apiResponse(diaryMoodState, 'Diary mood state updated successfully');
   }
 
+  @ApiOperation({
+    summary: 'Eliminar un estado de ánimo de una entrada de diario',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado de ánimo eliminado del diario',
+  })
+  @ApiResponse({ status: 404, description: 'No encontrado' })
   @Delete(':diaryId/:moodStateId')
   async remove(
     @Param('diaryId', ParseIntPipe) diaryId: number,
