@@ -19,7 +19,6 @@
       "@/*": ["./src/*"]
     },
     "outDir": "./dist",
-    "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
