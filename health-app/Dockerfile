@@ -10,7 +10,7 @@ COPY . .
 # Webpack bundlea todo en dist/main.js resolviendo los path aliases @/ sin
 # necesitar tsconfig-paths en runtime.
 RUN echo '{"collection":"@nestjs/schematics","sourceRoot":"src","compilerOptions":{"deleteOutDir":true,"webpack":true}}' > nest-cli.json
-RUN npm run build
+RUN NODE_ENV=production npm run build
 
 # ── Stage 2: Production ───────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -20,6 +20,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
+# Crea un .env vacío para que ConfigModule no falle si intenta abrirlo
+RUN touch .env
 
 ENV NODE_ENV=production
 EXPOSE 3000
