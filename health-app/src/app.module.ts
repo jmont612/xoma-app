@@ -24,6 +24,7 @@ import { SkillActivitiesModule } from './user-skill-activities/user-skill-activi
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     TypeOrmModule.forRoot(databaseConfig),
     UsersModule,

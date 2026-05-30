@@ -16,11 +16,7 @@ async function bootstrap() {
     }),
   );
 
-  const origin = process.env.DOMAIN_URL || 'http://localhost:5173';
-  app.enableCors({
-    origin,
-    credentials: false,
-  });
+  app.enableCors();
 
   const config = new DocumentBuilder()
     .setTitle('Xoma App API')
