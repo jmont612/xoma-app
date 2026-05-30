@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, DeviceEventEmitter, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, DeviceEventEmitter, Image, ScrollView, Text, TouchableOpacity, View, Vibration } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
+import * as Speech from 'expo-speech'
 import { get, post } from './lib/api'
 import { loadUser } from './lib/storage'
 
@@ -45,6 +46,8 @@ function formatMMSS(totalSeconds: number): string {
   return `${mm}:${ss}`
 }
 
+const DEFAULT_TIMER_SECONDS = 120
+
 export default function SubSkillScreen() {
   const { subSkillId } = useLocalSearchParams<{ subSkillId: string }>()
   const idNum = useMemo(() => Number(subSkillId), [subSkillId])
@@ -55,9 +58,28 @@ export default function SubSkillScreen() {
   const [steps, setSteps] = useState<{ id: number; description: string; hasTimer: boolean; requiresValidation: boolean }[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [ratings, setRatings] = useState<Record<number, number>>({})
-  const [secondsLeft, setSecondsLeft] = useState(30)
+  const [secondsLeft, setSecondsLeft] = useState(DEFAULT_TIMER_SECONDS)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [timerCompleted, setTimerCompleted] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const prevSecondsRef = useRef(DEFAULT_TIMER_SECONDS)
+  const didNotifyEndRef = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      Speech.stop()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (secondsLeft === 0 && prevSecondsRef.current > 0 && !didNotifyEndRef.current) {
+      didNotifyEndRef.current = true
+      Vibration.vibrate([0, 500, 200, 500])
+      Speech.stop()
+      Speech.speak('Tiempo terminado', { rate: 1.0, pitch: 1.0 })
+    }
+    prevSecondsRef.current = secondsLeft
+  }, [secondsLeft])
 
   useEffect(() => {
     (async () => {
@@ -82,6 +104,7 @@ export default function SubSkillScreen() {
       setSecondsLeft(prev => {
         if (prev <= 1) {
           setTimerRunning(false)
+          setTimerCompleted(true)
           return 0
         }
         return prev - 1
@@ -93,7 +116,15 @@ export default function SubSkillScreen() {
   }, [timerRunning])
 
   const startTimer = () => {
-    setSecondsLeft(30)
+    if (secondsLeft <= 0) {
+      setSecondsLeft(DEFAULT_TIMER_SECONDS)
+      setTimerCompleted(false)
+      didNotifyEndRef.current = false
+    } else if (timerCompleted) {
+      setSecondsLeft(DEFAULT_TIMER_SECONDS)
+      setTimerCompleted(false)
+      didNotifyEndRef.current = false
+    }
     setTimerRunning(true)
   }
 
@@ -101,9 +132,18 @@ export default function SubSkillScreen() {
     setTimerRunning(false)
   }
 
-  const resetTimer = () => {
-    setSecondsLeft(30)
+  const finishTimer = () => {
     setTimerRunning(false)
+    setTimerCompleted(true)
+    didNotifyEndRef.current = false
+    setSecondsLeft(0)
+  }
+
+  const resetTimer = () => {
+    setSecondsLeft(DEFAULT_TIMER_SECONDS)
+    setTimerRunning(false)
+    setTimerCompleted(false)
+    didNotifyEndRef.current = false
   }
 
   const currentStep = steps[currentIndex]
@@ -116,9 +156,12 @@ export default function SubSkillScreen() {
   const handleNext = async () => {
     if (!canProceed()) return
     if (currentIndex < steps.length - 1) {
+      const nextStep = steps[currentIndex + 1]
       setCurrentIndex(currentIndex + 1)
-      setSecondsLeft(30)
       setTimerRunning(false)
+      setTimerCompleted(false)
+      didNotifyEndRef.current = false
+      setSecondsLeft(nextStep?.hasTimer ? DEFAULT_TIMER_SECONDS : DEFAULT_TIMER_SECONDS)
     } else {
       try {
         const me = await loadUser<any>()
@@ -168,6 +211,7 @@ export default function SubSkillScreen() {
   const isStepOne = currentIndex === 0
   const isTimerStep = !!currentStep?.hasTimer
   const isFinalStep = currentIndex === totalSteps - 1
+  const canGoNextFromTimer = !isTimerStep || timerCompleted
 
   return (
     <View className="flex-1 bg-neutral">
@@ -286,17 +330,17 @@ export default function SubSkillScreen() {
             >
               <View className="flex-row items-center">
                 <Text className="text-white font-bold text-base">
-                  {timerRunning ? 'Pausar ejercicio' : 'Iniciar ejercicio'}
+                  {timerRunning ? 'Pausar ejercicio' : (secondsLeft > 0 && secondsLeft !== DEFAULT_TIMER_SECONDS ? 'Reanudar ejercicio' : 'Iniciar ejercicio')}
                 </Text>
               </View>
             </TouchableOpacity>
 
             <View className="flex-row justify-between mt-5" style={{ gap: 16 }}>
               <TouchableOpacity
-                onPress={pauseTimer}
+                onPress={finishTimer}
                 className="flex-1 bg-[#EAF5F5] rounded-full py-4 items-center border border-primary/10"
               >
-                <Text className="text-primary font-bold">Detener</Text>
+                <Text className="text-primary font-bold">Finalizar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={resetTimer}
@@ -319,8 +363,8 @@ export default function SubSkillScreen() {
 
             <TouchableOpacity
               onPress={handleNext}
-              disabled={!canProceed()}
-              className={`rounded-full py-5 mt-8 ${canProceed() ? 'bg-[#BFE3F5]' : 'bg-[#BFE3F5]/60'}`}
+              disabled={!canProceed() || !canGoNextFromTimer}
+              className={`rounded-full py-5 mt-8 ${canProceed() && canGoNextFromTimer ? 'bg-[#BFE3F5]' : 'bg-[#BFE3F5]/60'}`}
             >
               <View className="flex-row items-center justify-center">
                 <Text className="text-primary font-extrabold text-base mr-3">Siguiente</Text>

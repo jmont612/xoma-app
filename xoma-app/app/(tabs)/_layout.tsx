@@ -1,9 +1,20 @@
 import { Image } from "expo-image";
 import { Tabs } from "expo-router";
 import React from "react";
-import { View, Text } from "react-native";
+import { DeviceEventEmitter, View, Text } from "react-native";
 
 export default function TabLayout() {
+  const [isProfileDirty, setIsProfileDirty] = React.useState(false);
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("profile-dirty", (e: any) => {
+      setIsProfileDirty(!!e?.dirty);
+    });
+    return () => {
+      sub.remove();
+    };
+  }, []);
+
   return (
     <View className="flex-1 bg-neutral">
       <Tabs
@@ -45,6 +56,19 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="index"
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              const state = navigation.getState?.();
+              const currentName = state?.routes?.[state?.index]?.name;
+              if (currentName !== "profile") return;
+              if (!isProfileDirty) return;
+              if (route.name === "profile") return;
+              e.preventDefault();
+              DeviceEventEmitter.emit("profile-leave-attempt", {
+                targetName: route.name,
+              });
+            },
+          })}
           options={{
             title: "Inicio",
             tabBarIcon: ({ focused }) => (
@@ -71,6 +95,19 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="diary"
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              const state = navigation.getState?.();
+              const currentName = state?.routes?.[state?.index]?.name;
+              if (currentName !== "profile") return;
+              if (!isProfileDirty) return;
+              if (route.name === "profile") return;
+              e.preventDefault();
+              DeviceEventEmitter.emit("profile-leave-attempt", {
+                targetName: route.name,
+              });
+            },
+          })}
           options={{
             title: "Diario",
             tabBarIcon: ({ focused }) => (
@@ -97,6 +134,19 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="habilities"
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              const state = navigation.getState?.();
+              const currentName = state?.routes?.[state?.index]?.name;
+              if (currentName !== "profile") return;
+              if (!isProfileDirty) return;
+              if (route.name === "profile") return;
+              e.preventDefault();
+              DeviceEventEmitter.emit("profile-leave-attempt", {
+                targetName: route.name,
+              });
+            },
+          })}
           options={{
             title: "Habilidades",
             tabBarIcon: ({ focused }) => (
@@ -123,6 +173,19 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="profile"
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              const state = navigation.getState?.();
+              const currentName = state?.routes?.[state?.index]?.name;
+              if (currentName !== "profile") return;
+              if (!isProfileDirty) return;
+              if (route.name === "profile") return;
+              e.preventDefault();
+              DeviceEventEmitter.emit("profile-leave-attempt", {
+                targetName: route.name,
+              });
+            },
+          })}
           options={{
             title: "Perfil",
             tabBarIcon: ({ focused }) => (

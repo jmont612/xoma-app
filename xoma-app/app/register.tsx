@@ -21,7 +21,14 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
-  const genderOptions = ['masculino', 'femenino', 'otro'];
+  const genderOptions = [
+    { label: 'Masculino', value: 'male' },
+    { label: 'Femenino', value: 'female' },
+    { label: 'No binario', value: 'non-binary' },
+    { label: 'Otro', value: 'other' },
+  ];
+  const genderLabelByValue = new Map(genderOptions.map((o) => [o.value, o.label] as const));
+  const selectedGenderLabel = formData.gender ? (genderLabelByValue.get(formData.gender) ?? formData.gender) : '';
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -266,7 +273,7 @@ export default function RegisterScreen() {
                 >
                   <View className="flex-row items-center justify-between">
                     <Text className={formData.gender ? 'text-gray-800 font-medium' : 'text-gray-400'}>
-                      {formData.gender || 'Selecciona'}
+                      {selectedGenderLabel || 'Selecciona'}
                     </Text>
                     <Text className="text-gray-400">⌄</Text>
                   </View>
@@ -337,11 +344,11 @@ export default function RegisterScreen() {
               <Text className="text-gray-800 font-bold mb-4">Selecciona género</Text>
               {genderOptions.map((opt) => (
                 <TouchableOpacity
-                  key={opt}
-                  onPress={() => { updateFormData('gender', opt); setShowGenderPicker(false); }}
-                  className={`px-4 py-3 rounded-xl mb-2 border ${formData.gender === opt ? 'bg-[#EAF5F5] border-primary/20' : 'bg-white border-gray-200'}`}
+                  key={opt.value}
+                  onPress={() => { updateFormData('gender', opt.value); setShowGenderPicker(false); }}
+                  className={`px-4 py-3 rounded-xl mb-2 border ${formData.gender === opt.value ? 'bg-[#EAF5F5] border-primary/20' : 'bg-white border-gray-200'}`}
                 >
-                  <Text className="text-gray-800">{opt}</Text>
+                  <Text className="text-gray-800">{opt.label}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity

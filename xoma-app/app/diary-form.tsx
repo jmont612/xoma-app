@@ -11,6 +11,8 @@ import React, {
 } from "react";
 import {
   Alert,
+  Modal,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -61,6 +63,10 @@ const DEFAULT_YESNO: YesNoQuestions = {
 
 type EmotionKey = keyof EmotionState;
 type YesNoKey = keyof YesNoQuestions;
+
+type DialogState =
+  | { type: "success" | "error"; title: string; message: string; closeAction?: "back" }
+  | null;
 
 const EmotionSliderRow = React.memo(function EmotionSliderRow(props: {
   label: string;
@@ -167,6 +173,7 @@ export default function DiaryFormScreen() {
   });
   const MAX_REFLEXION_CHARS = 300;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialog, setDialog] = useState<DialogState>(null);
   const baselineRef = useRef<{
     emotions: EmotionState;
     yesNo: YesNoQuestions;
@@ -428,23 +435,27 @@ export default function DiaryFormScreen() {
 
       if (editingDiaryId) {
         await patch<any>(`/diaries/${editingDiaryId}`, payload);
-        Alert.alert("Cambios guardados", "Tu registro ha sido actualizado.", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        setDialog({
+          type: "success",
+          title: "Cambios guardados",
+          message: "Tu registro ha sido actualizado.",
+          closeAction: "back",
+        });
       } else {
         await post<any>("/diaries", payload);
-        Alert.alert(
-          "Registro guardado",
-          "Tu entrada del diario ha sido guardada exitosamente.",
-          [{ text: "OK", onPress: () => router.back() }],
-        );
+        setDialog({
+          type: "success",
+          title: "Registro guardado",
+          message: "Tu entrada del diario ha sido guardada exitosamente.",
+          closeAction: "back",
+        });
       }
     } catch (err: any) {
       const msg =
         err?.code === "NETWORK_ERROR"
           ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ""}`
           : err?.message || "No se pudo guardar el diario";
-      Alert.alert("Error", msg);
+      setDialog({ type: "error", title: "Error", message: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -452,6 +463,64 @@ export default function DiaryFormScreen() {
 
   return (
     <View className="flex-1 bg-neutral">
+      <Modal
+        visible={!!dialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDialog(null)}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 items-center justify-center px-6"
+          onPress={() => {
+            if (dialog?.closeAction === "back") {
+              setDialog(null);
+              router.back();
+              return;
+            }
+            setDialog(null);
+          }}
+        >
+          <Pressable
+            className="w-full bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm"
+            onPress={() => {}}
+          >
+            <View className="items-center">
+              <View
+                className={`w-14 h-14 rounded-full items-center justify-center mb-4 ${dialog?.type === "success" ? "bg-[#EAF5F5]" : "bg-[#F9EAEA]"}`}
+              >
+                <Text
+                  className={`text-2xl font-extrabold ${dialog?.type === "success" ? "text-primary" : "text-[#C84A4A]"}`}
+                >
+                  {dialog?.type === "success" ? "✓" : "!"}
+                </Text>
+              </View>
+              <Text className="text-gray-900 text-lg font-extrabold text-center">
+                {dialog?.title}
+              </Text>
+              <Text className="text-gray-500 text-sm text-center mt-2 leading-relaxed">
+                {dialog?.message}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (dialog?.closeAction === "back") {
+                  setDialog(null);
+                  router.back();
+                  return;
+                }
+                setDialog(null);
+              }}
+              className="mt-6 rounded-full py-4 bg-primary active:bg-primary/90"
+            >
+              <Text className="text-white text-center font-bold text-base">
+                {dialog?.type === "success" ? "Listo" : "Entendido"}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}

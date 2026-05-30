@@ -1,10 +1,12 @@
 import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import {
   Alert,
   DeviceEventEmitter,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -42,6 +44,8 @@ type DialogState =
   | null;
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [profile, setProfile] = useState<UserProfile>({
     nombres: "María José",
     apellidos: "González López",
@@ -61,10 +65,26 @@ export default function ProfileScreen() {
     emergenciaSecundariaTelefono: "",
   });
   const baselineRef = useRef<UserProfile | null>(null);
+  const leaveAlertOpenRef = useRef(false);
+  const pendingProceedRef = useRef<null | (() => void)>(null);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleCall = React.useCallback(async (phone: string) => {
+    const cleaned = String(phone || "").trim().replace(/[^\d+]/g, "");
+    if (!cleaned) return;
+    const url = `tel:${cleaned}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert("No disponible", "No pudimos abrir la app de llamadas en este dispositivo.");
+      return;
+    }
+    Linking.openURL(url);
+  }, []);
 
   const getAvatarInitial = () => {
     if (profile.alias && profile.alias.trim()) {
@@ -195,6 +215,16 @@ export default function ProfileScreen() {
     }
   }, [profile]);
 
+  React.useEffect(() => {
+    DeviceEventEmitter.emit("profile-dirty", { dirty: isDirty });
+  }, [isDirty]);
+
+  React.useEffect(() => {
+    return () => {
+      DeviceEventEmitter.emit("profile-dirty", { dirty: false });
+    };
+  }, []);
+
   const validatePersonalInfo = () => {
     const newErrors: { [key: string]: string } = {};
 
@@ -243,25 +273,27 @@ export default function ProfileScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = async () => {
-    try {
-      if (!userId) {
-        setDialog({
-          type: "error",
-          title: "No se pudo guardar",
-          message: "No pudimos cargar tu usuario. Inténtalo de nuevo.",
-        });
-        return;
-      }
-      if (!validatePersonalInfo()) {
-        setDialog({
-          type: "error",
-          title: "Revisa tus datos",
-          message: "Corrige los campos marcados para continuar.",
-        });
-        return;
-      }
-      const payload = {
+  const handleSave = async (opts?: { suppressSuccess?: boolean }) => {
+    if (!userId) {
+      setDialog({
+        type: "error",
+        title: "No se pudo guardar",
+        message: "No pudimos cargar tu usuario. Inténtalo de nuevo.",
+      });
+      return false;
+    }
+    if (!validatePersonalInfo()) {
+      setDialog({
+        type: "error",
+        title: "Revisa tus datos",
+        message: "Corrige los campos marcados para continuar.",
+      });
+      return false;
+    }
+    if (isSaving) return false;
+
+    const snapshot = profile;
+    const payload = {
         firstName: profile.nombres.trim(),
         lastName: profile.apellidos.trim(),
         username: profile.alias.trim(),
@@ -269,23 +301,16 @@ export default function ProfileScreen() {
         age: Number(profile.edad),
         gender: profile.genero.trim(),
         consentAccepted: profile.consentimiento,
-      };
-      const cleanPayload = Object.fromEntries(
+    };
+    const cleanPayload = Object.fromEntries(
         Object.entries(payload).filter(
           ([_, v]) => v !== undefined && v !== null && v !== "",
         ),
-      );
+    );
+
+    setIsSaving(true);
+    try {
       const updated = await updateUser(userId, cleanPayload);
-      setProfile((prev) => ({
-        ...prev,
-        nombres: updated.firstName || prev.nombres,
-        apellidos: updated.lastName || prev.apellidos,
-        alias: updated.username ?? prev.alias,
-        email: updated.email || prev.email,
-        edad: updated.age ? String(updated.age) : prev.edad,
-        genero: updated.gender || prev.genero,
-        consentimiento: !!updated.consentAccepted,
-      }));
 
       const toCreate: {
         firstName: string;
@@ -343,21 +368,43 @@ export default function ProfileScreen() {
           contacts: toCreate.map((c) => ({ userId: Number(userId), ...c })),
         });
       }
-      baselineRef.current = {
-        ...profile,
-        nombres: updated.firstName || profile.nombres,
-        apellidos: updated.lastName || profile.apellidos,
-        alias: updated.username ?? profile.alias,
-        email: updated.email || profile.email,
-        edad: updated.age ? String(updated.age) : profile.edad,
-        genero: updated.gender || profile.genero,
-        consentimiento: !!updated.consentAccepted,
+
+      const nextProfile: UserProfile = {
+        ...snapshot,
+        nombres: String(updated.firstName ?? payload.firstName ?? snapshot.nombres).trim(),
+        apellidos: String(updated.lastName ?? payload.lastName ?? snapshot.apellidos).trim(),
+        alias: String(updated.username ?? payload.username ?? snapshot.alias).trim(),
+        email: String(updated.email ?? payload.email ?? snapshot.email).trim(),
+        edad:
+          updated.age !== undefined && updated.age !== null
+            ? String(updated.age)
+            : String(payload.age ?? snapshot.edad),
+        genero: String(updated.gender ?? payload.gender ?? snapshot.genero).trim(),
+        consentimiento:
+          updated.consentAccepted !== undefined && updated.consentAccepted !== null
+            ? !!updated.consentAccepted
+            : !!snapshot.consentimiento,
+        terapeutaNombre: (snapshot.terapeutaNombre || "").trim(),
+        terapeutaApellido: (snapshot.terapeutaApellido || "").trim(),
+        terapeutaTelefono: (snapshot.terapeutaTelefono || "").trim(),
+        emergenciaPrincipalNombre: (snapshot.emergenciaPrincipalNombre || "").trim(),
+        emergenciaPrincipalApellido: (snapshot.emergenciaPrincipalApellido || "").trim(),
+        emergenciaPrincipalTelefono: (snapshot.emergenciaPrincipalTelefono || "").trim(),
+        emergenciaSecundariaNombre: (snapshot.emergenciaSecundariaNombre || "").trim(),
+        emergenciaSecundariaApellido: (snapshot.emergenciaSecundariaApellido || "").trim(),
+        emergenciaSecundariaTelefono: (snapshot.emergenciaSecundariaTelefono || "").trim(),
       };
-      setDialog({
-        type: "success",
-        title: "Cambios guardados",
-        message: "Actualizamos tu información correctamente.",
-      });
+
+      setProfile(nextProfile);
+      baselineRef.current = nextProfile;
+      if (!opts?.suppressSuccess) {
+        setDialog({
+          type: "success",
+          title: "Cambios guardados",
+          message: "Actualizamos tu información correctamente.",
+        });
+      }
+      return true;
     } catch (e: any) {
       const friendly =
         e?.code === "NETWORK_ERROR"
@@ -377,8 +424,97 @@ export default function ProfileScreen() {
         title: friendly.title,
         message: friendly.message,
       });
+      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const resetToBaseline = React.useCallback(() => {
+    if (!baselineRef.current) return;
+    setProfile(baselineRef.current);
+    setErrors({});
+  }, []);
+
+  const closeUnsavedConfirm = React.useCallback(() => {
+    setShowUnsavedConfirm(false);
+    leaveAlertOpenRef.current = false;
+    pendingProceedRef.current = null;
+  }, []);
+
+  const confirmLeave = React.useCallback(
+    (proceed: () => void) => {
+      if (!isDirty) {
+        proceed();
+        return;
+      }
+      if (leaveAlertOpenRef.current) return;
+      leaveAlertOpenRef.current = true;
+      pendingProceedRef.current = proceed;
+      setShowUnsavedConfirm(true);
+    },
+    [isDirty],
+  );
+
+  const handleUnsavedDiscard = React.useCallback(() => {
+    const proceed = pendingProceedRef.current;
+    resetToBaseline();
+    closeUnsavedConfirm();
+    proceed?.();
+  }, [closeUnsavedConfirm, resetToBaseline]);
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      confirmLeave(() => navigation.dispatch(e.data.action));
+    });
+    return unsubscribe;
+  }, [confirmLeave, isDirty, navigation]);
+
+  React.useEffect(() => {
+    const unsubscribes: Array<(() => void) | undefined> = [];
+    const seen = new Set<any>();
+    let nav: any = navigation;
+
+    while (nav && !seen.has(nav)) {
+      seen.add(nav);
+      const currentNav = nav;
+      const unsub = currentNav.addListener?.("tabPress", (e: any) => {
+        if (!isDirty) return;
+        if (typeof e?.preventDefault === "function") e.preventDefault();
+
+        const state = currentNav.getState?.();
+        const targetRoute = state?.routes?.find((r: any) => r.key === e.target);
+        if (!targetRoute?.name) return;
+
+        confirmLeave(() => currentNav.navigate(targetRoute.name));
+      });
+      unsubscribes.push(unsub);
+      nav = currentNav.getParent?.();
+    }
+
+    return () => {
+      unsubscribes.forEach((u) => {
+        if (typeof u === "function") u();
+      });
+    };
+  }, [confirmLeave, isDirty, navigation, route.key]);
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      "profile-leave-attempt",
+      (payload: any) => {
+        const targetName = String(payload?.targetName || "");
+        if (!targetName || targetName === "profile") return;
+        const path = targetName === "index" ? "/" : `/${targetName}`;
+        confirmLeave(() => router.push(path));
+      },
+    );
+    return () => {
+      sub.remove();
+    };
+  }, [confirmLeave]);
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -431,6 +567,55 @@ export default function ProfileScreen() {
       </Modal>
 
       <Modal
+        visible={showUnsavedConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={closeUnsavedConfirm}
+      >
+        <Pressable
+          className="flex-1 bg-black/40 items-center justify-center px-6"
+          onPress={closeUnsavedConfirm}
+        >
+          <Pressable
+            className="w-full bg-white rounded-[28px] p-6 border border-gray-100 shadow-sm"
+            onPress={() => {}}
+          >
+            <View className="items-center">
+              <View className="w-14 h-14 rounded-full bg-[#FFF7ED] items-center justify-center mb-4">
+                <Text className="text-[#B45309] text-2xl font-extrabold">!</Text>
+              </View>
+              <Text className="text-gray-900 text-lg font-extrabold text-center">
+                Cambios sin guardar
+              </Text>
+              <Text className="text-gray-500 text-sm text-center mt-2 leading-relaxed">
+                Tienes cambios pendientes. Si sales ahora, se perderán.
+              </Text>
+            </View>
+
+            <View className="mt-6" style={{ gap: 12 }}>
+              <TouchableOpacity
+                onPress={handleUnsavedDiscard}
+                className="rounded-full py-4 bg-[#C84A4A] active:bg-[#B94141]"
+              >
+                <Text className="text-white text-center font-bold text-base">
+                  Descartar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={closeUnsavedConfirm}
+                className="rounded-full py-4 bg-white border border-gray-200 active:bg-gray-50"
+              >
+                <Text className="text-gray-700 text-center font-bold text-base">
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
         visible={showLogoutConfirm}
         transparent
         animationType="fade"
@@ -471,8 +656,10 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setShowLogoutConfirm(false);
-                  logout();
-                  router.replace("/login");
+                  confirmLeave(() => {
+                    logout();
+                    router.replace("/login");
+                  });
                 }}
                 className="rounded-full py-4 bg-[#C84A4A] active:bg-[#B94141]"
               >
@@ -488,6 +675,7 @@ export default function ProfileScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 140 }}
       >
         <View className="px-6 pt-14">
@@ -689,7 +877,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 className="flex-1"
-                onPress={() => router.push("/consent")}
+                onPress={() => confirmLeave(() => router.push("/consent"))}
               >
                 <Text className="text-gray-600 text-sm">
                   Acepto el consentimiento informado para el uso de esta
@@ -741,6 +929,14 @@ export default function ProfileScreen() {
                   {errors.terapeutaTelefono}
                 </Text>
               )}
+
+              <TouchableOpacity
+                onPress={() => handleCall(profile.terapeutaTelefono)}
+                disabled={!profile.terapeutaTelefono.trim()}
+                className={`mt-4 rounded-full py-3 items-center ${profile.terapeutaTelefono.trim() ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
+              >
+                <Text className="text-white font-bold">Llamar</Text>
+              </TouchableOpacity>
             </View>
 
             <View className="bg-[#F8FAF9] rounded-[24px] p-5 border border-gray-100 mb-4">
@@ -784,6 +980,14 @@ export default function ProfileScreen() {
                   {errors.emergenciaPrincipalTelefono}
                 </Text>
               )}
+
+              <TouchableOpacity
+                onPress={() => handleCall(profile.emergenciaPrincipalTelefono)}
+                disabled={!profile.emergenciaPrincipalTelefono.trim()}
+                className={`mt-4 rounded-full py-3 items-center ${profile.emergenciaPrincipalTelefono.trim() ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
+              >
+                <Text className="text-white font-bold">Llamar</Text>
+              </TouchableOpacity>
             </View>
 
             <View className="bg-[#F8FAF9] rounded-[24px] p-5 border border-gray-100">
@@ -827,17 +1031,25 @@ export default function ProfileScreen() {
                   {errors.emergenciaSecundariaTelefono}
                 </Text>
               )}
+
+              <TouchableOpacity
+                onPress={() => handleCall(profile.emergenciaSecundariaTelefono)}
+                disabled={!profile.emergenciaSecundariaTelefono.trim()}
+                className={`mt-4 rounded-full py-3 items-center ${profile.emergenciaSecundariaTelefono.trim() ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
+              >
+                <Text className="text-white font-bold">Llamar</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
           <TouchableOpacity
-            className={`rounded-full px-6 py-5 shadow-sm ${isDirty ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
+            className={`rounded-full px-6 py-5 shadow-sm ${isDirty && !isSaving ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
             onPress={handleSave}
-            disabled={!isDirty}
+            disabled={!isDirty || isSaving}
           >
             <View className="flex-row items-center justify-center">
               <Text className="text-white font-bold text-base">
-                Guardar cambios
+                {isSaving ? "Guardando…" : "Guardar cambios"}
               </Text>
             </View>
           </TouchableOpacity>
