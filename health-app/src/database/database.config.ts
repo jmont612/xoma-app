@@ -15,6 +15,7 @@ import { Step } from '@/steps/entities/step.entity';
 import { SubSkill } from '@/sub-skills/entities/sub-skill.entity';
 import { UserSkillActivity } from '@/user-skill-activities/entities/user-skill-activity.entity';
 import { User } from '@/users/entities/user.entity';
+import { InitialMigration1778977220720 } from '@/migrations/1778977220720-InitialMigration';
 
 process.loadEnvFile?.('.env');
 
@@ -40,7 +41,7 @@ const databaseConfig: DataSourceOptions = {
     UserSkillActivity,
     User,
   ],
-  migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+  migrations: [InitialMigration1778977220720],
   migrationsTableName: 'db_migrations',
   synchronize: false,
   logging: true,
