@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { get, put } from "../lib/api";
 import { getMe, logout, updateUser } from "../lib/auth";
+import { getDefaultAvatarByGender } from "../lib/avatar";
 import { loadAvatarUri, saveAvatarUri } from "../lib/storage";
 
 interface UserProfile {
@@ -65,13 +66,6 @@ export default function ProfileScreen() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [dialog, setDialog] = useState<DialogState>(null);
-
-  const getAvatarInitial = () => {
-    if (profile.alias && profile.alias.trim()) {
-      return profile.alias.charAt(0).toUpperCase();
-    }
-    return profile.nombres.charAt(0).toUpperCase();
-  };
 
   const getDisplayName = () => {
     if (profile.alias && profile.alias.trim()) {
@@ -498,16 +492,14 @@ export default function ProfileScreen() {
               className="relative"
             >
               <View className="w-20 h-20 rounded-full bg-primary items-center justify-center overflow-hidden">
-                {avatarUri ? (
-                  <Image
-                    source={{ uri: avatarUri }}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                ) : (
-                  <Text className="text-white text-3xl font-extrabold">
-                    {getAvatarInitial()}
-                  </Text>
-                )}
+                <Image
+                  source={
+                    avatarUri
+                      ? { uri: avatarUri }
+                      : getDefaultAvatarByGender(profile.genero)
+                  }
+                  style={{ width: "100%", height: "100%" }}
+                />
               </View>
               <View className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-secondary items-center justify-center border-2 border-neutral">
                 <Text className="text-white text-base">✎</Text>

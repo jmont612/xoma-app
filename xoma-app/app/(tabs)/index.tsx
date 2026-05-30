@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { get } from "../lib/api";
-import { toLocalYYYYMMDD } from "../lib/date";
+import { getDefaultAvatarByGender } from "../lib/avatar";
+import { isSameLocalDay, toDateFromUnknown, toLocalYYYYMMDD } from "../lib/date";
 import { loadAvatarUri, loadUser } from "../lib/storage";
 
 export default function HomeScreen() {
@@ -19,7 +20,9 @@ export default function HomeScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [displayName, setDisplayName] = useState("");
+  const [gender, setGender] = useState<string>("");
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [selectedDiaryId, setSelectedDiaryId] = useState<number | null>(null);
 
   // Función para generar el calendario del mes
   const generateCalendar = () => {
@@ -141,6 +144,39 @@ export default function HomeScreen() {
     useCallback(() => {
       loadDailySummary(selectedDate);
     }, [selectedDate, loadDailySummary]),
+  );
+
+  // Diario del día seleccionado (items 4 y 5): saber si ya existe para
+  // ofrecer editar en lugar de crear, y evitar duplicados.
+  const loadSelectedDayDiary = useCallback(
+    async (date?: Date) => {
+      try {
+        const me = await loadUser<any>();
+        const userId = (me?.id ?? me?.userId ?? 1) as number;
+        const target = new Date(date ?? selectedDate);
+        const res = await get<{ data: any[] }>(`/diaries/user/${userId}`);
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const match = list.find((d: any) =>
+          isSameLocalDay(
+            toDateFromUnknown(d?.entryDate ?? d?.createdAt),
+            target,
+          ),
+        );
+        setSelectedDiaryId(match ? Number(match.id) : null);
+      } catch {
+        setSelectedDiaryId(null);
+      }
+    },
+    [selectedDate],
+  );
+
+  useEffect(() => {
+    loadSelectedDayDiary(selectedDate);
+  }, [selectedDate, loadSelectedDayDiary]);
+  useFocusEffect(
+    useCallback(() => {
+      loadSelectedDayDiary(selectedDate);
+    }, [selectedDate, loadSelectedDayDiary]),
   );
 
   // Racha semanal (item 3)
@@ -305,11 +341,19 @@ export default function HomeScreen() {
       loadSubSkillIcons();
       loadRecentSkills();
       loadWeeklyStreak();
+      loadSelectedDayDiary(selectedDate);
     });
     return () => {
       sub.remove();
     };
-  }, [loadDailySummary, loadRecentSkills, loadSubSkillIcons, loadWeeklyStreak]);
+  }, [
+    loadDailySummary,
+    loadRecentSkills,
+    loadSubSkillIcons,
+    loadWeeklyStreak,
+    loadSelectedDayDiary,
+    selectedDate,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -320,8 +364,10 @@ export default function HomeScreen() {
           me?.firstName || me?.nombres || me?.name || "",
         ).trim();
         setDisplayName(alias || name || "");
+        setGender(String(me?.gender || me?.genero || "").trim());
       } catch {
         setDisplayName("");
+        setGender("");
       }
     })();
   }, []);
@@ -413,19 +459,13 @@ export default function HomeScreen() {
         <View className="px-6 pt-16 mb-8 flex-row justify-between items-center">
           <View className="flex-row items-center">
             <View className="w-12 h-12 rounded-full bg-gray-300 mr-4 overflow-hidden border-2 border-white shadow-sm">
-              {avatarUri ? (
-                <Image
-                  source={{ uri: avatarUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image
-                  source={require("../../assets/images/logo.png")}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="cover"
-                />
-              )}
+              <Image
+                source={
+                  avatarUri ? { uri: avatarUri } : getDefaultAvatarByGender(gender)
+                }
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
             </View>
             <Text className="text-primary text-xl font-bold">
               {`Hola, ${displayName || "Elena"}`}
@@ -516,7 +556,7 @@ export default function HomeScreen() {
               </Text>
 
               {hasEma || daySkillCount > 0 ? (
-                <View>
+                <View className="mb-6">
                   <View className="flex-row mb-5" style={{ gap: 10 }}>
                     <View
                       className="flex-1 rounded-full px-4 py-3 border border-primary/10"
@@ -554,20 +594,36 @@ export default function HomeScreen() {
                     </View>
                   )}
                 </View>
-              ) : (
-                <View>
-                  <Text className="text-gray-500 mb-6 leading-6">
-                    No hay registros para este día.
+              ) : !selectedDiaryId ? (
+                <Text className="text-gray-500 mb-6 leading-6">
+                  No hay registros para este día.
+                </Text>
+              ) : null}
+
+              {selectedDiaryId ? (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push(`/diary-form?diaryId=${selectedDiaryId}`)
+                  }
+                  className="bg-primary rounded-full py-4 shadow-sm"
+                >
+                  <Text className="text-white text-center font-bold text-lg">
+                    Editar registro
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => router.push("/diary-form")}
-                    className="bg-primary rounded-full py-4 shadow-sm"
-                  >
-                    <Text className="text-white text-center font-bold text-lg">
-                      Crear registro
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push(
+                      `/diary-form?date=${toLocalYYYYMMDD(selectedDate)}`,
+                    )
+                  }
+                  className="bg-primary rounded-full py-4 shadow-sm"
+                >
+                  <Text className="text-white text-center font-bold text-lg">
+                    Crear registro
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           )}
@@ -602,9 +658,22 @@ export default function HomeScreen() {
                 <Text className="text-gray-800 font-bold text-base mb-2">
                   Estado de ánimo
                 </Text>
-                <Text className="text-gray-500 text-xs">
-                  Predominantemente estable.
-                </Text>
+                {hasEma ? (
+                  <View
+                    className="self-start rounded-full px-3 py-1"
+                    style={{ backgroundColor: getRiskPresentation(lastEmaRisk).bg }}
+                  >
+                    <Text
+                      className={`text-xs font-bold ${getRiskPresentation(lastEmaRisk).textClass}`}
+                    >
+                      {getRiskPresentation(lastEmaRisk).label}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text className="text-gray-500 text-xs">
+                    Sin evaluación este día.
+                  </Text>
+                )}
               </View>
             </View>
           </View>

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager, Between } from 'typeorm';
 import { Diary } from './entities/diary.entity';
@@ -40,11 +44,46 @@ export class DiariesService {
           userSkillActivities: skillActivities,
           userId,
           reflections,
+          entryDate,
         } = createDiaryDto;
 
         const user = await this.usersService.findOne(userId);
 
-        const diary = manager.create(Diary, { user });
+        // Resolver fecha objetivo. Para días pasados se usa el mediodía local
+        // y así evitar desfaces de zona horaria al filtrar por rango de día.
+        let targetDate: Date;
+        if (entryDate) {
+          const [y, m, d] = entryDate
+            .split('T')[0]
+            .split('-')
+            .map((n) => Number(n));
+          targetDate = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0);
+        } else {
+          targetDate = new Date();
+        }
+
+        const startOfDay = new Date(targetDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Solo se permite un diario por día por usuario.
+        const existingDiary = await manager.findOne(Diary, {
+          where: {
+            user: { id: userId },
+            entryDate: Between(startOfDay, endOfDay),
+          },
+        });
+        if (existingDiary) {
+          throw new ConflictException(
+            'Ya existe un diario registrado para este día',
+          );
+        }
+
+        const diary = manager.create(
+          Diary,
+          entryDate ? { user, entryDate: targetDate } : { user },
+        );
         const savedDiary = await manager.save(diary);
 
         if (moodStates?.length) {

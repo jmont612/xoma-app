@@ -154,8 +154,12 @@ const YesNoRow = React.memo(function YesNoRow(props: {
 });
 
 export default function DiaryFormScreen() {
-  const { diaryId } = useLocalSearchParams<{ diaryId?: string }>();
+  const { diaryId, date } = useLocalSearchParams<{
+    diaryId?: string;
+    date?: string;
+  }>();
   const editingDiaryId = diaryId ? Number(diaryId) : null;
+  const entryDate = typeof date === "string" && date ? date : null;
   const [emotions, setEmotions] = useState<EmotionState>(DEFAULT_EMOTIONS);
 
   const [yesNoAnswers, setYesNoAnswers] =
@@ -418,6 +422,9 @@ export default function DiaryFormScreen() {
 
       const payload = {
         userId,
+        // Solo se envía entryDate al crear diarios de días pasados; en el día
+        // actual se omite para que el backend use la fecha/hora real.
+        ...(entryDate ? { entryDate } : {}),
         moodStates,
         behaviors,
         reflections: {
@@ -440,6 +447,14 @@ export default function DiaryFormScreen() {
         );
       }
     } catch (err: any) {
+      if (err?.status === 409) {
+        Alert.alert(
+          "Ya existe un diario",
+          "Este día ya tiene un diario registrado. Edítalo desde el inicio o la pantalla de Diario.",
+          [{ text: "OK", onPress: () => router.back() }],
+        );
+        return;
+      }
       const msg =
         err?.code === "NETWORK_ERROR"
           ? `No se pudo conectar con el servidor${err?.url ? `: ${err.url}` : ""}`
