@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -22,6 +23,8 @@ import { ConfirmVerificationCodeDto } from './dto/confirm-verification-code.dto'
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(Auth)
     private readonly authRepository: Repository<Auth>,
@@ -226,7 +229,8 @@ export class AuthService {
       });
 
       return 'Verification code sent to email';
-    } catch (_error) {
+    } catch (error) {
+      this.logger.error('requestPasswordReset failed', error?.message);
       throw new BadRequestException('Failed to send verification code email');
     }
   }
