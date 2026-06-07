@@ -72,9 +72,6 @@ export function getApiBaseUrl(): string {
   const rawDev = (envAny || envDev || extra?.apiUrlDev) as string | undefined;
   const rawProd = (envAny || envProd || extra?.apiUrlProd) as string | undefined;
 
-  console.log("rawDev", rawDev);
-  console.log("rawProd", rawProd);
-
   const useDev =
     __DEV__ ||
     isExpoGo ||

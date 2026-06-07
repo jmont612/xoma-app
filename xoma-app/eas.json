@@ -13,7 +13,12 @@
       "android": { "buildType": "apk" }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://xoma-app-backend-production.up.railway.app"
+      }
     }
   },
   "submit": {
