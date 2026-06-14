@@ -59,7 +59,6 @@ export default function HomeScreen() {
 
   const [hasEma, setHasEma] = useState<boolean>(false);
   const [lastEmaRisk, setLastEmaRisk] = useState<string | null>(null);
-  const [lastEmaMoodRating, setLastEmaMoodRating] = useState<number | null>(null);
   const [daySkillCount, setDaySkillCount] = useState<number>(0);
   const [daySkillNames, setDaySkillNames] = useState<string[]>([]);
   const dailySummaryFetchLockRef = useRef(false);
@@ -89,74 +88,17 @@ export default function HomeScreen() {
     return { label: "Riesgo bajo", bg: "#EAF5F5", textClass: "text-primary" };
   };
 
-  const getMoodPresentation = (rating: number | null) => {
-    if (rating === null || !Number.isFinite(rating)) {
-      return { label: "Sin resultado", bg: "#F3F4F6", textClass: "text-gray-500" };
+  const getMoodPresentation = (risk: string | null) => {
+    if (risk === "ALTO") {
+      return { label: "BAJO", bg: "#FEE2E2", textClass: "text-red-700" };
     }
-    if (rating <= 2) {
-      return { label: "Muy mal", bg: "#FEE2E2", textClass: "text-red-700" };
+    if (risk === "MEDIO") {
+      return { label: "REGULAR", bg: "#FEF0C7", textClass: "text-orange-700" };
     }
-    if (rating <= 4) {
-      return { label: "Mal", bg: "#FED7AA", textClass: "text-orange-700" };
+    if (risk === "BAJO") {
+      return { label: "BUENO", bg: "#EAF5F5", textClass: "text-primary" };
     }
-    if (rating <= 6) {
-      return { label: "Regular", bg: "#FEF0C7", textClass: "text-yellow-700" };
-    }
-    if (rating <= 8) {
-      return { label: "Bien", bg: "#DCFCE7", textClass: "text-green-700" };
-    }
-    return { label: "Muy bien", bg: "#DBEAFE", textClass: "text-blue-700" };
-  };
-
-  const extractLastEmaMoodRating = (entries: any[]): number | null => {
-    if (!Array.isArray(entries) || entries.length === 0) return null;
-
-    const flattenCandidates = (list: any[]) =>
-      list.flatMap((item: any) => [
-        item,
-        ...(Array.isArray(item?.emaLogs) ? item.emaLogs : []),
-        ...(Array.isArray(item?.logs) ? item.logs : []),
-        ...(Array.isArray(item?.items) ? item.items : []),
-      ]);
-
-    const candidates = flattenCandidates(entries);
-    for (const item of candidates) {
-      const emaTypeId = Number(item?.emaTypeId ?? item?.emaType?.id ?? item?.typeId);
-      const name = String(
-        item?.emaType?.name ?? item?.emaTypeName ?? item?.name ?? item?.type ?? "",
-      )
-        .trim()
-        .toLowerCase();
-      const rawRating =
-        item?.rating ?? item?.value ?? item?.score ?? item?.moodRating ?? item?.mood;
-      const rating = Number(rawRating);
-      const isMoodEntry =
-        emaTypeId === 1 ||
-        name.includes("mood") ||
-        name.includes("animo") ||
-        name.includes("ánimo");
-
-      if (isMoodEntry && Number.isFinite(rating)) {
-        return Math.round(rating);
-      }
-    }
-
-    const latestEntry = [...entries]
-      .sort((a: any, b: any) => {
-        const aTime = new Date(
-          a?.createdAt ?? a?.updatedAt ?? a?.submittedAt ?? a?.date ?? 0,
-        ).getTime();
-        const bTime = new Date(
-          b?.createdAt ?? b?.updatedAt ?? b?.submittedAt ?? b?.date ?? 0,
-        ).getTime();
-        return bTime - aTime;
-      })
-      .find(Boolean);
-
-    const fallbackRating = Number(
-      latestEntry?.moodRating ?? latestEntry?.mood ?? latestEntry?.score,
-    );
-    return Number.isFinite(fallbackRating) ? Math.round(fallbackRating) : null;
+    return { label: "Sin resultado", bg: "#F3F4F6", textClass: "text-gray-500" };
   };
 
   // Resumen del día (items 2 y 5): último EMA + habilidades de la fecha seleccionada
@@ -180,7 +122,6 @@ export default function HomeScreen() {
         setHasEma(lastEma.length > 0);
         const risk = lastEma.find((l: any) => l?.riskLevel)?.riskLevel ?? null;
         setLastEmaRisk(risk ? String(risk).toUpperCase() : null);
-        setLastEmaMoodRating(extractLastEmaMoodRating(lastEma));
 
         const activities = Array.isArray(summary.skillActivities)
           ? summary.skillActivities
@@ -202,7 +143,6 @@ export default function HomeScreen() {
       } catch {
         setHasEma(false);
         setLastEmaRisk(null);
-        setLastEmaMoodRating(null);
         setDaySkillCount(0);
         setDaySkillNames([]);
       } finally {
@@ -733,36 +673,20 @@ export default function HomeScreen() {
                 <Text className="text-gray-800 font-bold text-base mb-2">
                   Estado de ánimo
                 </Text>
-                {hasEma && lastEmaMoodRating !== null ? (
+                {hasEma ? (
                   <View
                     className="self-start rounded-full px-3 py-1 mb-2"
-                    style={{ backgroundColor: getMoodPresentation(lastEmaMoodRating).bg }}
+                    style={{ backgroundColor: getMoodPresentation(lastEmaRisk).bg }}
                   >
                     <Text
-                      className={`text-xs font-bold ${getMoodPresentation(lastEmaMoodRating).textClass}`}
+                      className={`text-xs font-bold ${getMoodPresentation(lastEmaRisk).textClass}`}
                     >
-                      {getMoodPresentation(lastEmaMoodRating).label}
-                    </Text>
-                  </View>
-                ) : hasEma ? (
-                  <View
-                    className="self-start rounded-full px-3 py-1 mb-2"
-                    style={{ backgroundColor: getRiskPresentation(lastEmaRisk).bg }}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${getRiskPresentation(lastEmaRisk).textClass}`}
-                    >
-                      {getRiskPresentation(lastEmaRisk).label}
+                      {getMoodPresentation(lastEmaRisk).label}
                     </Text>
                   </View>
                 ) : (
                   <Text className="text-gray-500 text-xs">
                     Sin evaluación este día.
-                  </Text>
-                )}
-                {hasEma && lastEmaMoodRating !== null && (
-                  <Text className="text-gray-500 text-xs">
-                    Último EMA del día: {lastEmaMoodRating}/10
                   </Text>
                 )}
               </View>
