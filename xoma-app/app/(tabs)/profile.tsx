@@ -44,6 +44,22 @@ type DialogState =
   | { type: "success"; title: string; message: string }
   | null;
 
+const NAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '\-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
+const ALIAS_REGEX = /^[A-Za-z0-9._-]{3,20}$/;
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+const sanitizeNameInput = (value: string) =>
+  value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ '\-]/g, "");
+
+const sanitizeAliasInput = (value: string) =>
+  value.replace(/[^A-Za-z0-9._-]/g, "");
+
+const sanitizeEmailInput = (value: string) =>
+  value.replace(/\s+/g, "").replace(/[^A-Za-z0-9@._%+-]/g, "");
+
+const sanitizePhoneInput = (value: string) =>
+  value.replace(/[^\d]/g, "").slice(0, 9);
+
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -221,23 +237,48 @@ export default function ProfileScreen() {
 
   const validatePersonalInfo = () => {
     const newErrors: { [key: string]: string } = {};
+    const nombres = profile.nombres.trim();
+    const apellidos = profile.apellidos.trim();
+    const alias = profile.alias.trim();
+    const email = profile.email.trim();
+    const edad = profile.edad.trim();
+    const terapeutaNombre = profile.terapeutaNombre.trim();
+    const terapeutaApellido = profile.terapeutaApellido.trim();
+    const emergenciaPrincipalNombre = profile.emergenciaPrincipalNombre.trim();
+    const emergenciaPrincipalApellido = profile.emergenciaPrincipalApellido.trim();
+    const emergenciaSecundariaNombre = profile.emergenciaSecundariaNombre.trim();
+    const emergenciaSecundariaApellido = profile.emergenciaSecundariaApellido.trim();
 
-    if (!profile.nombres.trim()) newErrors.nombres = "Ingresa tus nombres";
-    if (!profile.apellidos.trim())
+    if (!nombres) {
+      newErrors.nombres = "Ingresa tus nombres";
+    } else if (!NAME_REGEX.test(nombres)) {
+      newErrors.nombres = "Los nombres solo pueden tener letras y espacios";
+    }
+    if (!apellidos) {
       newErrors.apellidos = "Ingresa tus apellidos";
+    } else if (!NAME_REGEX.test(apellidos)) {
+      newErrors.apellidos = "Los apellidos solo pueden tener letras y espacios";
+    }
 
-    if (!profile.email.trim()) {
+    if (!alias) {
+      newErrors.alias = "Ingresa tu alias";
+    } else if (!ALIAS_REGEX.test(alias)) {
+      newErrors.alias =
+        "El alias debe tener 3 a 20 caracteres sin espacios";
+    }
+
+    if (!email) {
       newErrors.email = "Ingresa tu correo";
-    } else if (!/\S+@\S+\.\S+/.test(profile.email)) {
+    } else if (!EMAIL_REGEX.test(email)) {
       newErrors.email = "Ingresa un correo válido";
     }
 
-    if (!profile.edad.trim()) {
+    if (!edad) {
       newErrors.edad = "Ingresa tu edad";
-    } else if (!/^\d+$/.test(profile.edad)) {
+    } else if (!/^\d+$/.test(edad)) {
       newErrors.edad = "La edad solo acepta números";
     } else {
-      const ageNum = Number(profile.edad);
+      const ageNum = Number(edad);
       if (!Number.isFinite(ageNum) || ageNum < 13 || ageNum > 100) {
         newErrors.edad = "La edad debe estar entre 13 y 100";
       }
@@ -247,20 +288,68 @@ export default function ProfileScreen() {
       newErrors.genero = "Selecciona tu género";
     }
 
-    if (profile.terapeutaNombre.trim() && !profile.terapeutaTelefono.trim()) {
-      newErrors.terapeutaTelefono = "Ingresa el número de teléfono";
+    if (terapeutaNombre && !NAME_REGEX.test(terapeutaNombre)) {
+      newErrors.terapeutaNombre = "El nombre solo puede tener letras y espacios";
+    }
+    if (terapeutaApellido && !NAME_REGEX.test(terapeutaApellido)) {
+      newErrors.terapeutaApellido =
+        "El apellido solo puede tener letras y espacios";
+    }
+    if (emergenciaPrincipalNombre && !NAME_REGEX.test(emergenciaPrincipalNombre)) {
+      newErrors.emergenciaPrincipalNombre =
+        "El nombre solo puede tener letras y espacios";
     }
     if (
-      profile.emergenciaPrincipalNombre.trim() &&
+      emergenciaPrincipalApellido &&
+      !NAME_REGEX.test(emergenciaPrincipalApellido)
+    ) {
+      newErrors.emergenciaPrincipalApellido =
+        "El apellido solo puede tener letras y espacios";
+    }
+    if (
+      emergenciaSecundariaNombre &&
+      !NAME_REGEX.test(emergenciaSecundariaNombre)
+    ) {
+      newErrors.emergenciaSecundariaNombre =
+        "El nombre solo puede tener letras y espacios";
+    }
+    if (
+      emergenciaSecundariaApellido &&
+      !NAME_REGEX.test(emergenciaSecundariaApellido)
+    ) {
+      newErrors.emergenciaSecundariaApellido =
+        "El apellido solo puede tener letras y espacios";
+    }
+
+    if (terapeutaNombre && !profile.terapeutaTelefono.trim()) {
+      newErrors.terapeutaTelefono = "Ingresa el número de teléfono";
+    } else if (
+      profile.terapeutaTelefono.trim() &&
+      !/^\d{9}$/.test(profile.terapeutaTelefono.trim())
+    ) {
+      newErrors.terapeutaTelefono = "El número debe tener 9 dígitos";
+    }
+    if (
+      emergenciaPrincipalNombre &&
       !profile.emergenciaPrincipalTelefono.trim()
     ) {
       newErrors.emergenciaPrincipalTelefono = "Ingresa el número de teléfono";
+    } else if (
+      profile.emergenciaPrincipalTelefono.trim() &&
+      !/^\d{9}$/.test(profile.emergenciaPrincipalTelefono.trim())
+    ) {
+      newErrors.emergenciaPrincipalTelefono = "El número debe tener 9 dígitos";
     }
     if (
-      profile.emergenciaSecundariaNombre.trim() &&
+      emergenciaSecundariaNombre &&
       !profile.emergenciaSecundariaTelefono.trim()
     ) {
       newErrors.emergenciaSecundariaTelefono = "Ingresa el número de teléfono";
+    } else if (
+      profile.emergenciaSecundariaTelefono.trim() &&
+      !/^\d{9}$/.test(profile.emergenciaSecundariaTelefono.trim())
+    ) {
+      newErrors.emergenciaSecundariaTelefono = "El número debe tener 9 dígitos";
     }
 
     setErrors(newErrors);
@@ -436,6 +525,20 @@ export default function ProfileScreen() {
     pendingProceedRef.current = null;
   }, []);
 
+  const pushTabRoute = React.useCallback((targetName: string) => {
+    if (targetName === "index") {
+      router.push("/");
+      return;
+    }
+    if (targetName === "diary") {
+      router.push("/diary");
+      return;
+    }
+    if (targetName === "habilities") {
+      router.push("/habilities");
+    }
+  }, []);
+
   const confirmLeave = React.useCallback(
     (proceed: () => void) => {
       if (!isDirty) {
@@ -501,14 +604,13 @@ export default function ProfileScreen() {
       (payload: any) => {
         const targetName = String(payload?.targetName || "");
         if (!targetName || targetName === "profile") return;
-        const path = targetName === "index" ? "/" : `/${targetName}`;
-        confirmLeave(() => router.push(path));
+        confirmLeave(() => pushTabRoute(targetName));
       },
     );
     return () => {
       sub.remove();
     };
-  }, [confirmLeave]);
+  }, [confirmLeave, pushTabRoute]);
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -718,7 +820,9 @@ export default function ProfileScreen() {
               >
                 <TextInput
                   value={profile.nombres}
-                  onChangeText={(text) => updateProfile("nombres", text)}
+                  onChangeText={(text) =>
+                    updateProfile("nombres", sanitizeNameInput(text))
+                  }
                   className="rounded-full px-5 py-4 text-gray-800"
                   placeholder="Nombres"
                   placeholderTextColor="#9CA3AF"
@@ -740,7 +844,9 @@ export default function ProfileScreen() {
               >
                 <TextInput
                   value={profile.apellidos}
-                  onChangeText={(text) => updateProfile("apellidos", text)}
+                  onChangeText={(text) =>
+                    updateProfile("apellidos", sanitizeNameInput(text))
+                  }
                   className="rounded-full px-5 py-4 text-gray-800"
                   placeholder="Apellidos"
                   placeholderTextColor="#9CA3AF"
@@ -762,7 +868,9 @@ export default function ProfileScreen() {
               >
                 <TextInput
                   value={profile.alias}
-                  onChangeText={(text) => updateProfile("alias", text)}
+                  onChangeText={(text) =>
+                    updateProfile("alias", sanitizeAliasInput(text))
+                  }
                   className="rounded-full px-5 py-4 text-gray-800"
                   placeholder="Alias"
                   placeholderTextColor="#9CA3AF"
@@ -785,7 +893,9 @@ export default function ProfileScreen() {
               >
                 <TextInput
                   value={profile.email}
-                  onChangeText={(text) => updateProfile("email", text)}
+                  onChangeText={(text) =>
+                    updateProfile("email", sanitizeEmailInput(text))
+                  }
                   className="rounded-full px-5 py-4 text-gray-800"
                   placeholder="email@correo.com"
                   placeholderTextColor="#9CA3AF"
@@ -891,30 +1001,42 @@ export default function ProfileScreen() {
               </Text>
               <TextInput
                 value={profile.terapeutaNombre}
-                onChangeText={(text) => updateProfile("terapeutaNombre", text)}
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                onChangeText={(text) =>
+                  updateProfile("terapeutaNombre", sanitizeNameInput(text))
+                }
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.terapeutaNombre ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Nombre"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.terapeutaNombre && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.terapeutaNombre}
+                </Text>
+              )}
               <TextInput
                 value={profile.terapeutaApellido}
                 onChangeText={(text) =>
-                  updateProfile("terapeutaApellido", text)
+                  updateProfile("terapeutaApellido", sanitizeNameInput(text))
                 }
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.terapeutaApellido ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Apellido"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.terapeutaApellido && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.terapeutaApellido}
+                </Text>
+              )}
               <TextInput
                 value={profile.terapeutaTelefono}
                 onChangeText={(text) =>
-                  updateProfile("terapeutaTelefono", text.replace(/[^\d]/g, ""))
+                  updateProfile("terapeutaTelefono", sanitizePhoneInput(text))
                 }
                 className={`bg-white rounded-full px-5 py-3 text-gray-800 border ${errors.terapeutaTelefono ? "border-red-500" : "border-gray-100"}`}
-                placeholder="999666999"
+                placeholder="Número"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
-                maxLength={15}
+                maxLength={9}
               />
               {!!errors.terapeutaTelefono && (
                 <Text className="text-red-500 text-xs mt-2 ml-4">
@@ -938,34 +1060,50 @@ export default function ProfileScreen() {
               <TextInput
                 value={profile.emergenciaPrincipalNombre}
                 onChangeText={(text) =>
-                  updateProfile("emergenciaPrincipalNombre", text)
+                  updateProfile(
+                    "emergenciaPrincipalNombre",
+                    sanitizeNameInput(text),
+                  )
                 }
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.emergenciaPrincipalNombre ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Nombre"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.emergenciaPrincipalNombre && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.emergenciaPrincipalNombre}
+                </Text>
+              )}
               <TextInput
                 value={profile.emergenciaPrincipalApellido}
                 onChangeText={(text) =>
-                  updateProfile("emergenciaPrincipalApellido", text)
+                  updateProfile(
+                    "emergenciaPrincipalApellido",
+                    sanitizeNameInput(text),
+                  )
                 }
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.emergenciaPrincipalApellido ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Apellido"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.emergenciaPrincipalApellido && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.emergenciaPrincipalApellido}
+                </Text>
+              )}
               <TextInput
                 value={profile.emergenciaPrincipalTelefono}
                 onChangeText={(text) =>
                   updateProfile(
                     "emergenciaPrincipalTelefono",
-                    text.replace(/[^\d]/g, ""),
+                    sanitizePhoneInput(text),
                   )
                 }
                 className={`bg-white rounded-full px-5 py-3 text-gray-800 border ${errors.emergenciaPrincipalTelefono ? "border-red-500" : "border-gray-100"}`}
-                placeholder="999666999"
+                placeholder="Número"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
-                maxLength={15}
+                maxLength={9}
               />
               {!!errors.emergenciaPrincipalTelefono && (
                 <Text className="text-red-500 text-xs mt-2 ml-4">
@@ -989,34 +1127,50 @@ export default function ProfileScreen() {
               <TextInput
                 value={profile.emergenciaSecundariaNombre}
                 onChangeText={(text) =>
-                  updateProfile("emergenciaSecundariaNombre", text)
+                  updateProfile(
+                    "emergenciaSecundariaNombre",
+                    sanitizeNameInput(text),
+                  )
                 }
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.emergenciaSecundariaNombre ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Nombre"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.emergenciaSecundariaNombre && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.emergenciaSecundariaNombre}
+                </Text>
+              )}
               <TextInput
                 value={profile.emergenciaSecundariaApellido}
                 onChangeText={(text) =>
-                  updateProfile("emergenciaSecundariaApellido", text)
+                  updateProfile(
+                    "emergenciaSecundariaApellido",
+                    sanitizeNameInput(text),
+                  )
                 }
-                className="bg-white rounded-full px-5 py-3 text-gray-800 border border-gray-100 mb-3"
+                className={`bg-white rounded-full px-5 py-3 text-gray-800 border mb-3 ${errors.emergenciaSecundariaApellido ? "border-red-500" : "border-gray-100"}`}
                 placeholder="Apellido"
                 placeholderTextColor="#9CA3AF"
               />
+              {!!errors.emergenciaSecundariaApellido && (
+                <Text className="text-red-500 text-xs mt-[-4] mb-3 ml-4">
+                  {errors.emergenciaSecundariaApellido}
+                </Text>
+              )}
               <TextInput
                 value={profile.emergenciaSecundariaTelefono}
                 onChangeText={(text) =>
                   updateProfile(
                     "emergenciaSecundariaTelefono",
-                    text.replace(/[^\d]/g, ""),
+                    sanitizePhoneInput(text),
                   )
                 }
                 className={`bg-white rounded-full px-5 py-3 text-gray-800 border ${errors.emergenciaSecundariaTelefono ? "border-red-500" : "border-gray-100"}`}
-                placeholder="999666999"
+                placeholder="Número"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="number-pad"
-                maxLength={15}
+                maxLength={9}
               />
               {!!errors.emergenciaSecundariaTelefono && (
                 <Text className="text-red-500 text-xs mt-2 ml-4">
@@ -1036,7 +1190,9 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             className={`rounded-full px-6 py-5 shadow-sm ${isDirty && !isSaving ? "bg-primary active:bg-primary/90" : "bg-primary/60"}`}
-            onPress={handleSave}
+            onPress={() => {
+              void handleSave();
+            }}
             disabled={!isDirty || isSaving}
           >
             <View className="flex-row items-center justify-center">
