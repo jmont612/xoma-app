@@ -4,6 +4,19 @@ import { Image } from 'expo-image';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { register as registerUser } from './lib/auth';
 
+const NAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '\-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
+const USERNAME_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ._-]{3,20}$/;
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+const sanitizeNameInput = (value: string) =>
+  value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ '\-]/g, '');
+
+const sanitizeUsernameInput = (value: string) =>
+  value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ._-]/g, '');
+
+const sanitizeEmailInput = (value: string) =>
+  value.replace(/\s+/g, '').replace(/[^A-Za-z0-9@._%+-]/g, '');
+
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -32,22 +45,33 @@ export default function RegisterScreen() {
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const username = formData.username.trim();
+    const email = formData.email.trim();
+    const age = formData.age.trim();
 
-    if (!formData.firstName.trim()) {
+    if (!firstName) {
       newErrors.firstName = 'El nombre es requerido';
+    } else if (!NAME_REGEX.test(firstName)) {
+      newErrors.firstName = 'El nombre solo puede tener letras y espacios';
     }
 
-    if (!formData.lastName.trim()) {
+    if (!lastName) {
       newErrors.lastName = 'El apellido es requerido';
+    } else if (!NAME_REGEX.test(lastName)) {
+      newErrors.lastName = 'El apellido solo puede tener letras y espacios';
     }
 
-    if (!formData.username.trim()) {
+    if (!username) {
       newErrors.username = 'El alias es requerido';
+    } else if (!USERNAME_REGEX.test(username)) {
+      newErrors.username = 'El alias debe tener 3 a 20 caracteres sin números';
     }
 
-    if (!formData.email.trim()) {
+    if (!email) {
       newErrors.email = 'El correo es requerido';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!EMAIL_REGEX.test(email)) {
       newErrors.email = 'El correo no es válido';
     }
 
@@ -63,14 +87,14 @@ export default function RegisterScreen() {
       newErrors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
-    if (!formData.age.trim()) {
+    if (!age) {
       newErrors.age = 'La edad es requerida';
-    } else if (!/^\d+$/.test(formData.age)) {
+    } else if (!/^\d+$/.test(age)) {
       newErrors.age = 'La edad debe ser un número';
     } else {
-      const ageNum = Number(formData.age);
-      if (!Number.isFinite(ageNum) || ageNum < 13 || ageNum > 100) {
-        newErrors.age = 'La edad debe estar entre 13 y 100';
+      const ageNum = Number(age);
+      if (!Number.isFinite(ageNum) || ageNum < 21 || ageNum > 35) {
+        newErrors.age = 'La edad debe estar entre 21 y 35';
       }
     }
 
@@ -90,10 +114,10 @@ export default function RegisterScreen() {
     if (!validateForm()) return;
     
     const payload = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      username: formData.username,
-      email: formData.email,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      username: formData.username.trim(),
+      email: formData.email.trim(),
       password: formData.password,
       age: Number(formData.age),
       gender: formData.gender,
@@ -154,7 +178,7 @@ export default function RegisterScreen() {
                   placeholder="Juan"
                   placeholderTextColor="#9CA3AF"
                   value={formData.firstName}
-                  onChangeText={(value) => updateFormData('firstName', value)}
+                  onChangeText={(value) => updateFormData('firstName', sanitizeNameInput(value))}
                   autoCapitalize="words"
                   autoComplete="name"
                 />
@@ -170,7 +194,7 @@ export default function RegisterScreen() {
                   placeholder="Pérez"
                   placeholderTextColor="#9CA3AF"
                   value={formData.lastName}
-                  onChangeText={(value) => updateFormData('lastName', value)}
+                  onChangeText={(value) => updateFormData('lastName', sanitizeNameInput(value))}
                   autoCapitalize="words"
                   autoComplete="name"
                 />
@@ -186,7 +210,7 @@ export default function RegisterScreen() {
                   placeholder="Juancito"
                   placeholderTextColor="#9CA3AF"
                   value={formData.username}
-                  onChangeText={(value) => updateFormData('username', value)}
+                  onChangeText={(value) => updateFormData('username', sanitizeUsernameInput(value))}
                   autoCapitalize="none"
                 />
               </View>
@@ -201,7 +225,7 @@ export default function RegisterScreen() {
                   placeholder="ejemplo@correo.com"
                   placeholderTextColor="#9CA3AF"
                   value={formData.email}
-                  onChangeText={(value) => updateFormData('email', value)}
+                  onChangeText={(value) => updateFormData('email', sanitizeEmailInput(value))}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -257,9 +281,9 @@ export default function RegisterScreen() {
                     placeholder="25"
                     placeholderTextColor="#9CA3AF"
                     value={formData.age}
-                    onChangeText={(value) => updateFormData('age', value.replace(/[^\d]/g, ''))}
+                    onChangeText={(value) => updateFormData('age', value.replace(/[^\d]/g, '').slice(0, 2))}
                     keyboardType="number-pad"
-                    maxLength={3}
+                    maxLength={2}
                   />
                 </View>
                 {!!errors.age && <Text className="text-red-500 text-xs mt-2 ml-4">{errors.age}</Text>}

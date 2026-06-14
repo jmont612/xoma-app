@@ -31,8 +31,8 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiUrlDev": "http://192.168.18.45:3000",
-      "apiUrlProd": "https://api.midominio.com",
+      "apiUrlDev": "http://localhost:3000",
+      "apiUrlProd": "https://xoma-app-backend-production.up.railway.app",
       "forceLocalhostApi": false,
       "router": {},
       "eas": {
