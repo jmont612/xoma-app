@@ -183,11 +183,25 @@ export class EmaLogsService {
     userId: number,
     date?: string,
   ): Promise<EmaLog[]> {
-    const targetDate = date ? new Date(date) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    let startOfDay: Date;
+    let endOfDay: Date;
+
+    if (date) {
+      startOfDay = new Date(date);
+      // ISO datetime (local midnight sent as UTC) → ventana de 24h exacta
+      // YYYY-MM-DD (sin hora) → se parsea como UTC midnight, ventana UTC completa
+      if (date.includes('T')) {
+        endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      } else {
+        endOfDay = new Date(startOfDay);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+      }
+    } else {
+      startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      endOfDay = new Date();
+      endOfDay.setUTCHours(23, 59, 59, 999);
+    }
 
     const allLogsToday = await this.emaLogRepository.find({
       where: {
@@ -211,11 +225,23 @@ export class EmaLogsService {
     userId: number,
     date?: string,
   ): Promise<{ lastEma: EmaLog[]; skillActivities: UserSkillActivity[] }> {
-    const targetDate = date ? new Date(date) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    let startOfDay: Date;
+    let endOfDay: Date;
+
+    if (date) {
+      startOfDay = new Date(date);
+      if (date.includes('T')) {
+        endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      } else {
+        endOfDay = new Date(startOfDay);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+      }
+    } else {
+      startOfDay = new Date();
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      endOfDay = new Date();
+      endOfDay.setUTCHours(23, 59, 59, 999);
+    }
 
     const [lastEma, skillActivities] = await Promise.all([
       this.findLastEmaByUserAndDate(userId, date),

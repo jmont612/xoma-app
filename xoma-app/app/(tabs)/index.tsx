@@ -168,7 +168,9 @@ export default function HomeScreen() {
         const me = await loadUser<any>();
         const userId = (me?.id ?? me?.userId ?? 1) as number;
         const target = new Date(date ?? selectedDate);
-        const dateStr = toLocalYYYYMMDD(target);
+        const localMidnight = new Date(target);
+        localMidnight.setHours(0, 0, 0, 0);
+        const dateStr = encodeURIComponent(localMidnight.toISOString());
         const res = await get<{
           data: { lastEma: any[]; skillActivities: any[] };
         }>(`/ema-logs/user/${userId}/daily-summary?date=${dateStr}`);

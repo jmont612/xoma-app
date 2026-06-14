@@ -25,6 +25,7 @@ interface DiaryEntry {
   interventions: number;
   riskBehaviors: boolean;
   riskLevel: "low" | "moderate" | "high";
+  emaRiskLevel: "BAJO" | "MEDIO" | "ALTO" | null;
 }
 
 export default function DiaryScreen() {
@@ -98,9 +99,34 @@ export default function DiaryScreen() {
           interventions,
           riskBehaviors,
           riskLevel,
+          emaRiskLevel: null,
         };
       });
-      setDiaryEntries(mapped);
+
+      // Cargar EMA para cada fecha única del diario
+      const uniqueDates = [...new Set(mapped.map((e) => e.date))];
+      const emaByDate: Record<string, "BAJO" | "MEDIO" | "ALTO" | null> = {};
+      await Promise.all(
+        uniqueDates.map(async (dateKey) => {
+          try {
+            const localMidnight = fromYYYYMMDDLocal(dateKey);
+            localMidnight.setHours(0, 0, 0, 0);
+            const isoDate = encodeURIComponent(localMidnight.toISOString());
+            const emaRes = await get<{ data: { lastEma: any[] } }>(
+              `/ema-logs/user/${userId}/daily-summary?date=${isoDate}`,
+            );
+            const lastEma = emaRes?.data?.lastEma ?? [];
+            const risk = lastEma.find((l: any) => l?.riskLevel)?.riskLevel ?? null;
+            emaByDate[dateKey] = risk as "BAJO" | "MEDIO" | "ALTO" | null;
+          } catch {
+            emaByDate[dateKey] = null;
+          }
+        }),
+      );
+
+      setDiaryEntries(
+        mapped.map((e) => ({ ...e, emaRiskLevel: emaByDate[e.date] ?? null })),
+      );
       setError(null);
     } catch (e: any) {
       setError(e?.message || "No se pudo cargar los diarios");
@@ -263,7 +289,6 @@ export default function DiaryScreen() {
         {/* Header Superior */}
         <View className="px-6 pt-14 pb-4 flex-row items-center justify-between">
           <Text className="text-gray-800 text-xl font-bold">Mi Diario</Text>
-          <View className="w-8" /> {/* Spacer */}
         </View>
 
         {/* Título Principal */}
@@ -375,46 +400,21 @@ export default function DiaryScreen() {
                 <Text className="text-gray-500 text-sm font-medium">
                   {formatDate(entry.date)}
                 </Text>
-                <View
-                  className={`px-4 py-2 rounded-full flex-row items-center ${
-                    entry.riskLevel === "low"
-                      ? "bg-[#CFF1E2]"
-                      : entry.riskLevel === "moderate"
-                        ? "bg-[#FEF0C7]"
-                        : "bg-[#FEE2E2]"
-                  }`}
-                >
-                  <Text
-                    className={`mr-1 text-xs ${
-                      entry.riskLevel === "low"
-                        ? "text-primary"
-                        : entry.riskLevel === "moderate"
-                          ? "text-orange-700"
-                          : "text-red-700"
-                    }`}
-                  >
-                    {entry.riskLevel === "low"
-                      ? "🌿"
-                      : entry.riskLevel === "moderate"
-                        ? "⚠️"
-                        : "🚨"}
-                  </Text>
-                  <Text
-                    className={`font-bold text-xs ${
-                      entry.riskLevel === "low"
-                        ? "text-primary"
-                        : entry.riskLevel === "moderate"
-                          ? "text-orange-700"
-                          : "text-red-700"
-                    }`}
-                  >
-                    {entry.riskLevel === "low"
-                      ? "Calma"
-                      : entry.riskLevel === "moderate"
-                        ? "Alerta"
-                        : "Crítico"}
-                  </Text>
-                </View>
+                {(() => {
+                  const ema = entry.emaRiskLevel;
+                  const isHigh = ema === "ALTO" || (!ema && entry.riskLevel === "high");
+                  const isMid = ema === "MEDIO" || (!ema && entry.riskLevel === "moderate");
+                  const bg = isHigh ? "bg-[#FEE2E2]" : isMid ? "bg-[#FEF0C7]" : "bg-[#CFF1E2]";
+                  const textColor = isHigh ? "text-red-700" : isMid ? "text-orange-700" : "text-primary";
+                  const icon = isHigh ? "🚨" : isMid ? "⚠️" : "🌿";
+                  const label = isHigh ? "Crítico" : isMid ? "Alerta" : "Calma";
+                  return (
+                    <View className={`px-4 py-2 rounded-full flex-row items-center ${bg}`}>
+                      <Text className={`mr-1 text-xs ${textColor}`}>{icon}</Text>
+                      <Text className={`font-bold text-xs ${textColor}`}>{label}</Text>
+                    </View>
+                  );
+                })()}
               </View>
 
               {/* Título */}

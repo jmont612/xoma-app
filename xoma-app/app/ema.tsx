@@ -119,11 +119,13 @@ export default function EvaluacionEmocional() {
         ],
       };
       const res = await post<any>('/ema-logs', payload);
-      const levelRaw = (res?.data?.riskLevel || res?.riskLevel || res?.data?.level || res?.level || null) as string | null;
-      let level: 'low' | 'medium' | 'high' | null = null;
-      if (levelRaw === 'low' || levelRaw === 'medium' || levelRaw === 'high') {
-        level = levelRaw;
-      } else {
+      const mlGate = res?.data?.mlPrediction?.label_gate as string | undefined;
+      let level: 'low' | 'medium' | 'high';
+      if (mlGate === 'ALTO') level = 'high';
+      else if (mlGate === 'MEDIO') level = 'medium';
+      else if (mlGate === 'BAJO') level = 'low';
+      else {
+        // fallback si el ML no responde
         if (suicidalIdeation === true || urgeSelfHarm === true) level = 'high';
         else {
           const highSignals = [stress, anxiety, impulsivity].filter(v => v >= 6).length;
