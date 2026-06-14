@@ -3,46 +3,42 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { IEmailPayload } from '@/common/interfaces/email-payload.interface';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-
-  private getTransporter(): nodemailer.Transporter {
-    const port = Number(process.env.EMAIL_PORT);
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port,
-      secure: port === 465,
-      requireTLS: port === 587,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
-    });
-
-    return transporter;
-  }
+  private readonly resend = new Resend(process.env.RESEND_API_KEY);
 
   async sendMail(payload: IEmailPayload) {
     try {
-      payload.from = process.env.DEFAULT_MAIL_SENDER as string;
+      const from =
+        payload.from ??
+        process.env.DEFAULT_MAIL_SENDER ??
+        'onboarding@resend.dev';
 
-      await this.getTransporter().sendMail(payload);
+      const { error } = await this.resend.emails.send({
+        from,
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+      });
+
+      if (error) {
+        this.logger.error('Resend API error', error);
+        throw new Error(error.message);
+      }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to send email', {
         to: payload.to,
         subject: payload.subject,
-        error: error.message,
-        code: error.code,
+        error: message,
       });
+
       throw new InternalServerErrorException(
-        `Error sending confirmation email: ${error.message}`,
+        `Error sending confirmation email: ${message}`,
       );
     }
   }
